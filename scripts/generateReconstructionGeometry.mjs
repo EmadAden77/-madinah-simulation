@@ -9,6 +9,12 @@ const clusters = [
   [39.6160, 24.4640, 68, .0040, .0031],
   [39.6142, 24.4708, 55, .0032, .0026]
 ];
+const rasterFarms = [
+  [39.6010,24.4690,.0075,.0060],
+  [39.6168,24.4617,.0068,.0050],
+  [39.6042,24.4790,.0060,.0046],
+  [39.6125,24.4746,.0044,.0034]
+];
 
 function seed(n) { const x = Math.sin(n * 9187.123) * 43758.5453; return x - Math.floor(x); }
 function distM(aLon, aLat, bLon, bLat) { return Math.hypot((aLon - bLon) * 101500, (aLat - bLat) * 111320); }
@@ -93,6 +99,22 @@ for (let i = 0; i < 9; i++) {
   }));
 }
 
+// Date-palm trunks sampled from the exact V3 raster palm placement logic.
+// The green crowns remain in the orthophoto-like raster while these narrow extrusions add real parallax in 3D.
+for (let i = 0; i < 1200; i += 4) {
+  const f = rasterFarms[i % rasterFarms.length];
+  const a = seed(i * 7 + 1) * Math.PI * 2;
+  const r = Math.sqrt(seed(i * 7 + 2));
+  const lon = f[0] + Math.cos(a) * f[2] * r * .94;
+  const lat = f[1] + Math.sin(a) * f[3] * r * .94;
+  const size = 2.3 + seed(i * 7 + 3) * 3.4;
+  const trunk = .24 + seed(i * 7 + 5) * .18;
+  features.push(feature(lon, lat, trunk, trunk, seed(i * 7 + 4) * Math.PI * 2, {
+    kind: 'palm-trunk', detail_role: 'date-palm-trunk', height: 3.9 + size * .62,
+    base_height: 0, tone: 2, start_year: 622, confidence: 'interpretive', aligned_to_raster: true
+  }));
+}
+
 fs.mkdirSync(OUT, { recursive: true });
 fs.writeFileSync(path.join(OUT, 'buildings.geojson'), JSON.stringify({ type: 'FeatureCollection', features }));
-console.log(`Generated ${features.length} raster-aligned 3D reconstruction features.`);
+console.log(`Generated ${features.length} raster-aligned 3D reconstruction features, including sampled palm trunks.`);
