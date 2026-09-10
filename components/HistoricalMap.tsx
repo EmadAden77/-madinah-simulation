@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import maplibregl, { Map as MapLibreMap, MercatorCoordinate } from 'maplibre-gl';
 import * as THREE from 'three';
-import 'maplibre-gl/dist/maplibre-gl.css';
 import { MADINAH_CENTER, makeHistoricalGeoJSON, places } from '@/lib/historicalData';
 import { calculatePrayerTimes } from '@/lib/prayerTimes';
 
@@ -12,7 +11,6 @@ type AgentKind = 'person' | 'sheep' | 'goat' | 'horse' | 'camel' | 'donkey' | 's
 type Agent = {
   kind: AgentKind;
   origin: [number, number];
-  radius: number;
   speed: number;
   phase: number;
   mesh?: THREE.Object3D;
@@ -20,13 +18,11 @@ type Agent = {
 
 const COLORS = {
   sand: '#b9aa8b',
-  dry: '#c9bc9d',
   farm: '#71815a',
   farmLine: '#5e6f4d',
   route: '#8a7759',
   well: '#5f7f87',
   house: '#9d7952',
-  houseEdge: '#73563d',
 };
 
 function seeded(i: number) {
@@ -50,7 +46,6 @@ function makeAgents(): Agent[] {
     return {
       kind,
       origin: [MADINAH_CENTER[0] + Math.cos(a) * r, MADINAH_CENTER[1] + Math.sin(a) * r * 0.72],
-      radius: 0.00012 + seeded(i + 530) * 0.00022,
       speed: 0.25 + seeded(i + 540) * 0.45,
       phase: seeded(i + 550) * Math.PI * 2,
     };
@@ -112,7 +107,7 @@ function createHistorical3DLayer(map: MapLibreMap, agents: Agent[]) {
     id: 'historical-3d-world',
     type: 'custom' as const,
     renderingMode: '3d' as const,
-    onAdd(_map: MapLibreMap, gl: WebGLRenderingContext) {
+    onAdd(_map: MapLibreMap, gl: WebGL2RenderingContext) {
       scene = new THREE.Scene();
       camera = new THREE.Camera();
       world = new THREE.Group();
@@ -127,12 +122,15 @@ function createHistorical3DLayer(map: MapLibreMap, agents: Agent[]) {
       geo.houses.features.forEach((f, i) => {
         if (f.geometry.type !== 'Point') return;
         const [lng, lat] = f.geometry.coordinates as [number, number];
+        const width = 5 + seeded(i) * 5;
+        const height = 2.7 + seeded(i + 2) * 2.2;
+        const depth = 4 + seeded(i + 4) * 4;
         const box = new THREE.Mesh(
-          new THREE.BoxGeometry(5 + seeded(i) * 5, 2.7 + seeded(i + 2) * 2.2, 4 + seeded(i + 4) * 4),
+          new THREE.BoxGeometry(width, height, depth),
           new THREE.MeshLambertMaterial({ color: i % 3 === 0 ? 0x9c7751 : 0xa9855c })
         );
         const p = lngLatToLocal(lng, lat);
-        box.position.set(p.x, box.geometry.parameters.height / 2, p.z);
+        box.position.set(p.x, height / 2, p.z);
         box.rotation.y = seeded(i + 20) * Math.PI;
         world.add(box);
       });
@@ -176,7 +174,7 @@ function createHistorical3DLayer(map: MapLibreMap, agents: Agent[]) {
       renderer = new THREE.WebGLRenderer({ canvas: map.getCanvas(), context: gl, antialias: true });
       renderer.autoClear = false;
     },
-    render(_gl: WebGLRenderingContext, matrix: number[]) {
+    render(args: { gl: WebGL2RenderingContext; modelViewProjectionMatrix: Float32Array }) {
       const zoom = map.getZoom();
       const now = performance.now();
       const dt = Math.min(0.05, (now - lastTime) / 1000);
@@ -194,7 +192,7 @@ function createHistorical3DLayer(map: MapLibreMap, agents: Agent[]) {
         agent.mesh.rotation.y = -agent.phase + Math.PI / 2;
       });
 
-      const m = new THREE.Matrix4().fromArray(matrix);
+      const m = new THREE.Matrix4().fromArray(Array.from(args.modelViewProjectionMatrix));
       const l = world.userData.mercatorTransform as THREE.Matrix4;
       camera.projectionMatrix = m.multiply(l);
       renderer.resetState();
@@ -252,7 +250,7 @@ export default function HistoricalMap() {
     map.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: true }), 'top-left');
 
     map.on('load', () => {
-      map.addLayer(createHistorical3DLayer(map, agents));
+      map.addLayer(createHistorical3DLayer(map, agents) as any);
       setReady(true);
     });
 
@@ -278,7 +276,8 @@ export default function HistoricalMap() {
 
   const simMode = zoom < 13 ? 'إقليمي' : zoom < 15.3 ? 'عمراني' : zoom < 17 ? 'محاكاة حية' : 'تفاصيل محلية';
   const visibleCount = zoom >= 15.3 ? agents.length : 0;
-  const timeLabel = `${String(Math.floor(hour)).padStart(2,'0')}:${String(Math.round((hour % 1) * 60)).padStart(2,'0')}`;
+  const totalMinutes = Math.round(hour * 60);
+  const timeLabel = `${String(Math.floor(totalMinutes / 60) % 24).padStart(2,'0')}:${String(totalMinutes % 60).padStart(2,'0')}`;
 
   return (
     <main className="app-shell">
