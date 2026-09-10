@@ -1,0 +1,101 @@
+@import 'maplibre-gl/dist/maplibre-gl.css';
+
+:root {
+  --paper: #efe9dc;
+  --ink: #26231d;
+  --muted: #746c5f;
+  --accent: #9a563a;
+  --glass: rgba(245, 240, 229, .92);
+  --line: rgba(55, 46, 34, .14);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; background: var(--paper); color: var(--ink); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+button, input { font: inherit; }
+button { -webkit-tap-highlight-color: transparent; }
+
+.app-shell {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: auto minmax(52dvh, 1fr) auto auto;
+  background: var(--paper);
+  overflow: hidden;
+}
+
+.topbar {
+  min-height: 94px;
+  padding: max(14px, env(safe-area-inset-top)) 18px 12px;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+  background: rgba(244, 239, 228, .97);
+  z-index: 20;
+}
+.topbar small { color: var(--muted); letter-spacing: .08em; font-size: 11px; }
+.topbar h1 { margin: 3px 0 0; font-size: clamp(25px, 7vw, 34px); line-height: 1; }
+.icon-button { width: 48px; height: 48px; border: 0; border-radius: 50%; background: #ded7c8; font-size: 25px; cursor: pointer; }
+
+.map-wrap { position: relative; min-height: 52dvh; overflow: hidden; }
+.map { position: absolute; inset: 0; }
+.maplibregl-canvas { outline: none; }
+.maplibregl-ctrl-top-left { top: 74px; left: 10px; }
+.maplibregl-ctrl-group { border-radius: 14px !important; overflow: hidden; box-shadow: 0 5px 18px rgba(0,0,0,.15) !important; }
+
+.status-pill, .diagnostics {
+  position: absolute;
+  z-index: 5;
+  direction: rtl;
+  backdrop-filter: blur(14px);
+  background: var(--glass);
+  border: 1px solid rgba(255,255,255,.45);
+  box-shadow: 0 8px 24px rgba(47,38,25,.12);
+}
+.status-pill { top: 16px; right: 16px; border-radius: 999px; padding: 10px 14px; font-weight: 700; font-size: 13px; }
+.diagnostics { left: 12px; bottom: 12px; padding: 8px 10px; border-radius: 13px; display: flex; gap: 8px; font-size: 10px; color: #534b40; direction: ltr; }
+
+.place-card {
+  position: absolute;
+  z-index: 8;
+  right: 12px;
+  left: 12px;
+  bottom: 12px;
+  padding: 16px 18px;
+  border-radius: 22px;
+  background: rgba(247,243,234,.96);
+  box-shadow: 0 14px 40px rgba(0,0,0,.2);
+  border: 1px solid var(--line);
+}
+.place-card button { float: left; border: 0; background: transparent; font-size: 24px; }
+.place-card h2 { margin: 0 0 8px; font-size: 20px; }
+.place-card p { margin: 0 0 8px; color: #645b4e; line-height: 1.65; font-size: 13px; }
+.place-card strong { font-size: 12px; color: #865039; }
+
+.timeline-panel { padding: 12px 16px 10px; background: #f3eee3; border-top: 1px solid var(--line); }
+.time-row { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; margin-bottom: 7px; }
+.time-row span { color: var(--muted); font-size: 12px; }
+.time-row b { font-size: 20px; font-weight: 600; }
+.timeline-panel label { display: grid; grid-template-columns: 52px 1fr; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); }
+.timeline-panel input[type='range'] { width: 100%; accent-color: var(--accent); }
+.prayers { display: flex; gap: 7px; overflow-x: auto; scrollbar-width: none; padding-top: 7px; }
+.prayers::-webkit-scrollbar { display: none; }
+.prayers span { white-space: nowrap; background: #e6dece; padding: 6px 9px; border-radius: 999px; font-size: 10px; color: #51493f; }
+
+.bottom-nav {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding: 8px 8px max(8px, env(safe-area-inset-bottom));
+  background: #f7f3ea;
+  border-top: 1px solid var(--line);
+}
+.bottom-nav button { min-height: 46px; border: 0; background: transparent; color: #6f675b; border-radius: 14px; cursor: pointer; font-weight: 650; }
+.bottom-nav button.active { color: var(--accent); background: #eee5d7; }
+
+@media (min-width: 800px) {
+  .app-shell { max-width: 900px; margin: 0 auto; border-inline: 1px solid var(--line); }
+  .map-wrap { min-height: 65vh; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { scroll-behavior: auto !important; animation-duration: 0.01ms !important; }
+}
