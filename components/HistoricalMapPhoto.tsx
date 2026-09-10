@@ -10,7 +10,7 @@ export default function HistoricalMapPhoto() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const [ready, setReady] = useState(false);
-  const [zoom, setZoom] = useState(15.2);
+  const [zoom, setZoom] = useState(15.6);
   const [year, setYear] = useState(622);
   const [hour, setHour] = useState(7.67);
   const [selected, setSelected] = useState<(typeof places)[number] | null>(null);
@@ -37,7 +37,7 @@ export default function HistoricalMapPhoto() {
     const map = new maplibregl.Map({
       container: containerRef.current,
       center: MADINAH_CENTER,
-      zoom: 15.2,
+      zoom: 15.6,
       minZoom: 13,
       maxZoom: 19.5,
       pitch: 0,
@@ -51,7 +51,7 @@ export default function HistoricalMapPhoto() {
             tiles: [`${basePath}/tiles/{z}/{x}/{y}.png`],
             tileSize: 512,
             minzoom: 13,
-            maxzoom: 16,
+            maxzoom: 17,
             bounds: [39.585, 24.445, 39.640, 24.490]
           },
           buildings: { type: 'geojson', data: geo.buildings },
@@ -67,19 +67,19 @@ export default function HistoricalMapPhoto() {
             paint: {
               'raster-opacity': 1,
               'raster-resampling': 'linear',
-              'raster-fade-duration': 120
+              'raster-fade-duration': 100
             }
           },
           {
             id: 'buildings-3d',
             type: 'fill-extrusion',
             source: 'buildings',
-            minzoom: 17.2,
+            minzoom: 17.5,
             paint: {
               'fill-extrusion-color': ['match', ['get', 'tone'], 0, '#9e7653', 1, '#af845c', 2, '#8d6849', 3, '#b08760', '#a27a55'],
               'fill-extrusion-height': ['get', 'height'],
               'fill-extrusion-base': 0,
-              'fill-extrusion-opacity': 0.82,
+              'fill-extrusion-opacity': 0.70,
               'fill-extrusion-vertical-gradient': true
             }
           },
@@ -87,9 +87,9 @@ export default function HistoricalMapPhoto() {
             id: 'wells',
             type: 'circle',
             source: 'wells',
-            minzoom: 15.7,
+            minzoom: 16.2,
             paint: {
-              'circle-radius': ['interpolate', ['linear'], ['zoom'], 15.7, 2.5, 18, 7],
+              'circle-radius': ['interpolate', ['linear'], ['zoom'], 16.2, 2.5, 18, 6],
               'circle-color': '#4f7780',
               'circle-stroke-color': '#e8dcc2',
               'circle-stroke-width': 2
@@ -121,7 +121,7 @@ export default function HistoricalMapPhoto() {
     return () => { map.remove(); mapRef.current = null; };
   }, [geo]);
 
-  const simMode = zoom < 14 ? 'منظر جوي إقليمي' : zoom < 16 ? 'خريطة جوية Raster' : zoom < 17.2 ? 'تفاصيل جوية عالية' : 'منظور ثلاثي الأبعاد';
+  const simMode = zoom < 14 ? 'منظر جوي إقليمي' : zoom < 16 ? 'خريطة جوية Raster' : zoom < 17.5 ? 'تفاصيل جوية فائقة' : 'منظور ثلاثي الأبعاد';
   const totalMinutes = Math.round(hour * 60);
   const timeLabel = `${String(Math.floor(totalMinutes / 60) % 24).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`;
 
@@ -134,7 +134,7 @@ export default function HistoricalMapPhoto() {
         </div>
         <div className="top-actions">
           <button className="study-button" onClick={() => setStudyOpen(true)}>الدراسة</button>
-          <button className="icon-button" aria-label="إعادة تمركز الخريطة" onClick={() => mapRef.current?.easeTo({ center: MADINAH_CENTER, zoom: 15.2, pitch: 0, bearing: 0, duration: 700 })}>⌖</button>
+          <button className="icon-button" aria-label="إعادة تمركز الخريطة" onClick={() => mapRef.current?.easeTo({ center: MADINAH_CENTER, zoom: 15.6, pitch: 0, bearing: 0, duration: 700 })}>⌖</button>
         </div>
       </header>
 
@@ -142,7 +142,7 @@ export default function HistoricalMapPhoto() {
         <div ref={containerRef} className="map" />
         <div className="status-pill">{ready ? '● جاهز' : 'جارٍ تحميل البلاطات…'} · {simMode} · Z {zoom.toFixed(1)}</div>
         <div className="activity-card"><strong>{timeLabel}</strong><span>{currentActivity.activity}</span></div>
-        <div className="diagnostics"><span>Raster tile pyramid</span><span>Z {zoom.toFixed(1)}</span><span>{year}</span></div>
+        <div className="diagnostics"><span>Photoreal raster Z13–17</span><span>Z {zoom.toFixed(1)}</span><span>{year}</span></div>
         {selected && <article className="place-card"><button onClick={() => setSelected(null)}>×</button><h2>{selected.name}</h2><p>{selected.description}</p><strong>الثقة التاريخية: {selected.confidence}</strong></article>}
       </section>
 
@@ -154,8 +154,8 @@ export default function HistoricalMapPhoto() {
       </section>
 
       <nav className="bottom-nav" aria-label="التنقل">
-        <button className="active" onClick={() => mapRef.current?.easeTo({ zoom: 15.2, pitch: 0, duration: 700 })}>استكشف</button>
-        <button onClick={() => mapRef.current?.easeTo({ zoom: 17.6, pitch: 50, duration: 900 })}>المباني</button>
+        <button className="active" onClick={() => mapRef.current?.easeTo({ zoom: 15.6, pitch: 0, duration: 700 })}>استكشف</button>
+        <button onClick={() => mapRef.current?.easeTo({ zoom: 17.8, pitch: 48, duration: 900 })}>المباني</button>
         <button onClick={() => mapRef.current?.easeTo({ zoom: 13.6, pitch: 0, duration: 800 })}>الواحة</button>
         <button onClick={() => setStudyOpen(true)}>المعرفة</button>
       </nav>
