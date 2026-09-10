@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import maplibregl, { Map as MapLibreMap, Marker, GeoJSONSource } from 'maplibre-gl';
 import { MADINAH_CENTER, makeHistoricalGeoJSON, places } from '@/lib/historicalData';
 import { makeLivingSnapshot } from '@/lib/livingSimulation';
+import { getHistoricalLighting } from '@/lib/dayNightLighting';
 import { calculatePrayerTimes } from '@/lib/prayerTimes';
 import { simulationRules, studyMeta, studySections } from '@/lib/studyData';
 
@@ -47,6 +48,7 @@ export default function HistoricalMapPhoto() {
   const [studySection, setStudySection] = useState(studySections[0].id);
   const [layers, setLayers] = useState<LayerState>({ buildings: true, routes: false, farms: false, wells: true, landmarks: true, terrain: true, life: true });
   const geo = useMemo(() => makeHistoricalGeoJSON(), []);
+  const lighting = useMemo(() => getHistoricalLighting(hour), [hour]);
   const prayerTimes = useMemo(() => calculatePrayerTimes(new Date(Date.UTC(year, 5, 15))), [year]);
   const activeStudySection = useMemo(() => studySections.find((section) => section.id === studySection) ?? studySections[0], [studySection]);
   const currentActivity = useMemo(() => {
@@ -180,6 +182,22 @@ export default function HistoricalMapPhoto() {
   }, [layers, is3D, ready]);
 
   useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const rasterIds = ['historical-raster-622', 'historical-raster-627', 'historical-raster-632'];
+    rasterIds.forEach((id) => {
+      map.setPaintProperty(id, 'raster-brightness-min', lighting.rasterBrightnessMin);
+      map.setPaintProperty(id, 'raster-brightness-max', lighting.rasterBrightnessMax);
+      map.setPaintProperty(id, 'raster-contrast', lighting.rasterContrast);
+      map.setPaintProperty(id, 'raster-saturation', lighting.rasterSaturation);
+    });
+    map.setPaintProperty('terrain-hillshade', 'hillshade-illumination-direction', lighting.hillshadeDirection);
+    map.setPaintProperty('terrain-hillshade', 'hillshade-exaggeration', lighting.hillshadeExaggeration);
+    map.setPaintProperty('living-shadow', 'circle-opacity', lighting.livingShadowOpacity);
+    map.setPaintProperty('living-shadow', 'circle-translate', lighting.livingShadowTranslate);
+  }, [lighting, ready]);
+
+  useEffect(() => {
     markersRef.current.forEach((marker) => {
       const el = marker.getElement();
       el.classList.toggle('focused', Boolean(selected && el.dataset.placeId === selected.id));
@@ -203,7 +221,7 @@ export default function HistoricalMapPhoto() {
   const timeLabel = `${String(Math.floor(totalMinutes / 60) % 24).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`;
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell phase-${lighting.phase}`}>
       <header className="topbar">
         <div><small>إعادة بناء تاريخية تفاعلية · 622–632م</small><h1>المدينة المنورة</h1></div>
         <div className="top-actions">
@@ -215,16 +233,17 @@ export default function HistoricalMapPhoto() {
 
       <section className="map-wrap">
         <div ref={containerRef} className="map" />
+        <div className="time-light-overlay" style={{ background: lighting.overlay }} />
         <div className="map-toolbar"><button onClick={() => setLayersOpen((v) => !v)}>☷ الطبقات</button><button onClick={toggle3D}>{is3D ? '▱ عرض جوي' : '▰ استكشف 3D'}</button></div>
         {layersOpen && <div className="layers-panel"><strong>طبقات الخريطة</strong>{(Object.keys(layers) as (keyof LayerState)[]).map((key) => { const names: Record<keyof LayerState, string> = { buildings: 'المجمعات والعمارة', routes: 'المسارات', farms: 'الزراعة', wells: 'الآبار', landmarks: 'المعالم', terrain: 'التضاريس ثلاثية الأبعاد', life: 'الحياة والحركة' }; return <label key={key}><span>{names[key]}</span><input type="checkbox" checked={layers[key]} onChange={() => setLayers((s) => ({ ...s, [key]: !s[key] }))} /></label>; })}</div>}
         <div className="status-pill">{ready ? '● جاهز' : 'جارٍ التحميل…'} · {simMode}</div>
-        <div className="activity-card"><strong>{timeLabel}</strong><span>{currentActivity.activity}</span><small>{layers.life ? 'الحركة مرتبطة بالساعة والسنة' : 'طبقة الحياة متوقفة'}</small></div>
-        <div className="diagnostics"><span>{growthLabel}</span><span>{is3D ? lodLabel : `Z ${zoom.toFixed(1)}`}</span><span>{year}</span></div>
+        <div className="activity-card"><strong>{timeLabel} · {lighting.label}</strong><span>{currentActivity.activity}</span><small>ارتفاع الشمس {Math.round(lighting.sunAltitude)}° · اتجاه {Math.round(lighting.sunAzimuth)}°</small></div>
+        <div className="diagnostics"><span>{growthLabel}</span><span>{is3D ? lodLabel : `Z ${zoom.toFixed(1)}`}</span><span>{lighting.label}</span><span>{year}</span></div>
         {selected && <article className="place-card"><button onClick={() => setSelected(null)}>×</button><h2>{selected.name}</h2><p>{selected.description}</p><strong>الثقة التاريخية: {selected.confidence}</strong><div className="place-actions"><button onClick={focusSelected}>استكشف المعلم 3D</button></div></article>}
       </section>
 
       <section className="timeline-panel">
-        <div className="time-row"><span>{growthLabel}</span><b>{year} · {timeLabel}</b></div>
+        <div className="time-row"><span>{growthLabel} · {lighting.label}</span><b>{year} · {timeLabel}</b></div>
         <label>السنة <input type="range" min="622" max="632" value={year} onChange={(e) => setYear(Number(e.target.value))} /></label>
         <label>الوقت <input type="range" min="0" max="23.75" step="0.25" value={hour} onChange={(e) => setHour(Number(e.target.value))} /></label>
         <div className="prayers"><span>الفجر {prayerTimes.fajr}</span><span>الظهر {prayerTimes.dhuhr}</span><span>العصر {prayerTimes.asr}</span><span>المغرب {prayerTimes.maghrib}</span><span>العشاء {prayerTimes.isha}</span></div>
