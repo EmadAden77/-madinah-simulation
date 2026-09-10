@@ -1,0 +1,495 @@
+/* Original immersive historical-map UI inspired by modern interactive atlas patterns. */
+
+.immersive-map {
+  background: #8b7655;
+}
+
+.edge-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(14,13,11,.34) 0%, transparent 18%, transparent 72%, rgba(14,13,11,.38) 100%),
+    linear-gradient(90deg, rgba(14,13,11,.16) 0%, transparent 14%, transparent 86%, rgba(14,13,11,.18) 100%);
+}
+
+.floating-header {
+  position: absolute;
+  z-index: 40;
+  top: max(14px, env(safe-area-inset-top));
+  right: 18px;
+  left: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  pointer-events: none;
+}
+
+.brand-lockup,
+.header-actions,
+.explorer-dock,
+.layers-panel,
+.scene-status,
+.focus-card,
+.activity-chip,
+.landmark-strip,
+.timeline-float {
+  pointer-events: auto;
+}
+
+.brand-lockup {
+  padding: 12px 16px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(28,25,21,.90), rgba(22,20,18,.80));
+  backdrop-filter: blur(18px);
+  box-shadow: 0 14px 36px rgba(0,0,0,.24);
+  min-width: min(330px, 52vw);
+}
+
+.brand-lockup small {
+  display: block;
+  color: #c9baa7;
+  font-size: 9px;
+  letter-spacing: .025em;
+}
+
+.brand-lockup h1 {
+  margin: 3px 0 0;
+  color: #fff8ed;
+  font-size: clamp(22px, 3vw, 31px);
+  line-height: 1;
+  font-weight: 800;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.glass-button {
+  height: 42px;
+  padding: 0 15px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 13px;
+  background: rgba(28,25,21,.82);
+  color: #f3eadf;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 9px 26px rgba(0,0,0,.20);
+  cursor: pointer;
+  font-weight: 750;
+  font-size: 11px;
+}
+
+.glass-button.active {
+  background: rgba(145,86,56,.93);
+  border-color: rgba(231,178,137,.42);
+}
+
+.explorer-dock {
+  position: absolute;
+  z-index: 36;
+  left: 18px;
+  top: 96px;
+  display: grid;
+  gap: 7px;
+  padding: 6px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 16px;
+  background: rgba(25,23,20,.84);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 12px 28px rgba(0,0,0,.24);
+}
+
+.explorer-dock button {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: #d9ccbb;
+  cursor: pointer;
+  font-size: 17px;
+  transition: background .18s ease, color .18s ease, transform .18s ease;
+}
+
+.explorer-dock button:hover,
+.explorer-dock button.active {
+  background: rgba(166,101,67,.72);
+  color: #fff7ea;
+  transform: translateY(-1px);
+}
+
+.layers-panel.immersive-panel {
+  top: 96px;
+  left: 78px;
+  width: 220px;
+  background: rgba(25,23,20,.94);
+}
+
+.panel-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.panel-title button {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 9px;
+  background: rgba(255,255,255,.07);
+  color: #e8ded0;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.scene-status {
+  position: absolute;
+  z-index: 26;
+  top: 98px;
+  right: 18px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 7px;
+  row-gap: 1px;
+  padding: 9px 12px;
+  border: 1px solid rgba(255,255,255,.11);
+  border-radius: 14px;
+  background: rgba(25,23,20,.78);
+  color: #efe7dc;
+  backdrop-filter: blur(15px);
+  box-shadow: 0 10px 26px rgba(0,0,0,.20);
+}
+
+.scene-status .status-dot {
+  grid-row: 1 / 3;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #c9aa75;
+  box-shadow: 0 0 0 4px rgba(201,170,117,.10);
+}
+
+.scene-status strong { font-size: 10px; }
+.scene-status small { color: #bcae9d; font-size: 8px; }
+
+.focus-card {
+  position: absolute;
+  z-index: 34;
+  right: 18px;
+  top: 156px;
+  width: min(340px, calc(100vw - 110px));
+  padding: 16px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 19px;
+  background: linear-gradient(180deg, rgba(28,25,21,.95), rgba(23,21,18,.92));
+  color: #f6eee3;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 18px 48px rgba(0,0,0,.30);
+}
+
+.focus-kicker {
+  color: #c99d7a;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+
+.focus-close {
+  position: absolute;
+  top: 11px;
+  left: 11px;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255,255,255,.07);
+  color: #eee3d5;
+  cursor: pointer;
+  font-size: 19px;
+}
+
+.focus-card h2 {
+  margin: 5px 0 8px;
+  padding-left: 34px;
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.focus-card p {
+  margin: 0;
+  color: #cdbfac;
+  font-size: 11px;
+  line-height: 1.75;
+}
+
+.focus-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 11px;
+}
+
+.focus-meta span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.06);
+  color: #d6c8b7;
+  font-size: 8px;
+}
+
+.focus-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.focus-actions button {
+  min-height: 38px;
+  flex: 1;
+  border: 1px solid rgba(255,255,255,.11);
+  border-radius: 11px;
+  background: #965b3d;
+  color: #fff7ed;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.focus-actions button.secondary {
+  background: rgba(255,255,255,.07);
+  color: #ddd0c1;
+}
+
+.activity-chip {
+  position: absolute;
+  z-index: 24;
+  left: 78px;
+  top: 98px;
+  max-width: 235px;
+  padding: 9px 11px;
+  display: grid;
+  gap: 2px;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 13px;
+  background: rgba(25,23,20,.73);
+  backdrop-filter: blur(13px);
+  box-shadow: 0 9px 24px rgba(0,0,0,.17);
+}
+
+.activity-chip b { color: #f0e5d8; font-size: 9px; }
+.activity-chip span { color: #bfae9a; font-size: 8px; line-height: 1.45; }
+
+.landmark-strip {
+  position: absolute;
+  z-index: 31;
+  left: 18px;
+  right: 18px;
+  bottom: 116px;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 2px 5px;
+  scrollbar-width: none;
+  direction: rtl;
+}
+
+.landmark-strip::-webkit-scrollbar { display: none; }
+
+.landmark-tile {
+  flex: 0 0 auto;
+  min-width: 155px;
+  max-width: 205px;
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  text-align: right;
+  border: 1px solid rgba(255,255,255,.11);
+  border-radius: 15px;
+  background: rgba(25,23,20,.82);
+  color: #efe7dc;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 10px 24px rgba(0,0,0,.20);
+  cursor: pointer;
+}
+
+.landmark-tile.active {
+  background: rgba(126,76,50,.94);
+  border-color: rgba(236,190,151,.34);
+}
+
+.tile-icon {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: rgba(236,216,181,.13);
+  color: #e8c79a;
+  font-size: 16px;
+}
+
+.landmark-tile > span:last-child { display: grid; gap: 2px; }
+.landmark-tile b { font-size: 10px; line-height: 1.35; }
+.landmark-tile small { color: #bfae9b; font-size: 8px; }
+
+.timeline-float {
+  position: absolute;
+  z-index: 33;
+  left: 18px;
+  right: 18px;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  padding: 9px 13px 8px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 17px;
+  background: linear-gradient(180deg, rgba(27,24,21,.93), rgba(22,20,18,.90));
+  color: #f1e8db;
+  backdrop-filter: blur(18px);
+  box-shadow: 0 15px 36px rgba(0,0,0,.28);
+}
+
+.timeline-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 5px;
+}
+
+.timeline-head span { color: #beaf9d; font-size: 9px; }
+.timeline-head b { font-size: 13px; }
+
+.timeline-float label {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  align-items: center;
+  gap: 8px;
+  min-height: 20px;
+  color: #c5b5a3;
+  font-size: 8px;
+}
+
+.timeline-float input[type='range'] {
+  width: 100%;
+  accent-color: #aa6747;
+}
+
+.prayers.compact {
+  padding-top: 4px;
+}
+
+@media (max-width: 760px) {
+  .floating-header {
+    top: max(8px, env(safe-area-inset-top));
+    right: 8px;
+    left: 8px;
+    gap: 7px;
+  }
+
+  .brand-lockup {
+    min-width: 0;
+    max-width: calc(100vw - 112px);
+    padding: 9px 11px;
+    border-radius: 14px;
+  }
+
+  .brand-lockup small {
+    max-width: 52vw;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 7px;
+  }
+
+  .brand-lockup h1 { font-size: 17px; }
+  .header-actions { gap: 4px; }
+  .glass-button { height: 36px; padding-inline: 9px; border-radius: 11px; font-size: 9px; }
+
+  .explorer-dock {
+    left: 8px;
+    top: 74px;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 13px;
+  }
+
+  .explorer-dock button { width: 34px; height: 34px; font-size: 15px; }
+  .layers-panel.immersive-panel { top: 74px; left: 50px; width: 185px; }
+
+  .scene-status {
+    top: 74px;
+    right: 8px;
+    padding: 7px 9px;
+  }
+
+  .scene-status strong { font-size: 8px; }
+  .scene-status small { font-size: 7px; }
+  .activity-chip { display: none; }
+
+  .focus-card {
+    top: auto;
+    right: 8px;
+    left: 8px;
+    bottom: 181px;
+    width: auto;
+    max-height: 220px;
+    overflow: auto;
+    padding: 13px;
+    border-radius: 16px;
+  }
+
+  .focus-card h2 { font-size: 16px; }
+  .focus-card p { font-size: 10px; line-height: 1.55; }
+  .focus-actions button { min-height: 34px; font-size: 9px; }
+
+  .landmark-strip {
+    right: 8px;
+    left: 8px;
+    bottom: 105px;
+    gap: 6px;
+  }
+
+  .landmark-tile {
+    min-width: 132px;
+    min-height: 51px;
+    padding: 7px 8px;
+    border-radius: 13px;
+  }
+
+  .tile-icon { width: 29px; height: 29px; font-size: 14px; }
+  .landmark-tile b { font-size: 9px; }
+  .landmark-tile small { font-size: 7px; }
+
+  .timeline-float {
+    right: 8px;
+    left: 8px;
+    bottom: max(7px, env(safe-area-inset-bottom));
+    padding: 7px 10px 6px;
+    border-radius: 14px;
+  }
+
+  .timeline-head { margin-bottom: 2px; }
+  .timeline-head span { font-size: 8px; }
+  .timeline-head b { font-size: 11px; }
+  .timeline-float label { grid-template-columns: 34px 1fr; gap: 5px; min-height: 17px; font-size: 7px; }
+  .prayers.compact span { font-size: 7px; padding: 4px 6px; }
+}
+
+@media (min-width: 1100px) {
+  .floating-header { right: 26px; left: 26px; }
+  .explorer-dock { left: 26px; }
+  .layers-panel.immersive-panel { left: 86px; }
+  .scene-status { right: 26px; }
+  .focus-card { right: 26px; width: 365px; }
+  .landmark-strip { left: 26px; right: 410px; bottom: 124px; }
+  .timeline-float { left: 26px; right: 410px; }
+}
