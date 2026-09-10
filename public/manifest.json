@@ -1,0 +1,11 @@
+{
+  "name": "المدينة المنورة في القرن السابع",
+  "short_name": "محاكاة المدينة",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#efe9dc",
+  "theme_color": "#d9cfb8",
+  "lang": "ar",
+  "dir": "rtl",
+  "description": "محاكاة تاريخية تفاعلية مستنيرة جغرافياً للمدينة المنورة بين 622 و632 ميلادية."
+}
