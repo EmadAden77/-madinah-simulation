@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node scripts/generateHistoricalTilesV3.mjs && node scripts/generateReconstructionGeometry.mjs && node scripts/enrichReconstructionGeometry.mjs && node scripts/generateTerrainTiles.mjs",
+    "prebuild": "node scripts/generateHistoricalTilesV3.mjs && node scripts/generateReconstructionGeometry.mjs && node scripts/enrichReconstructionGeometry.mjs && node scripts/enrichOasisGeometry.mjs && node scripts/generateTerrainTiles.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
