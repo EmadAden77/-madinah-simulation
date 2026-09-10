@@ -102,7 +102,7 @@ function createLifeLayer(map: MapLibreMap, agents: Agent[]) {
       const z = map.getZoom(); const now = performance.now(); const dt = Math.min(0.05, (now - last) / 1000); last = now;
       agents.forEach((a) => {
         if (!a.mesh) return;
-        a.mesh.visible = z >= 16.15;
+        a.mesh.visible = z >= 16.5;
         if (!a.mesh.visible) return;
         a.phase += dt * a.speed;
         const p = local(a.origin[0], a.origin[1]);
@@ -122,7 +122,7 @@ export default function HistoricalMap() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const [ready, setReady] = useState(false);
-  const [zoom, setZoom] = useState(15.1);
+  const [zoom, setZoom] = useState(16.0);
   const [year, setYear] = useState(622);
   const [hour, setHour] = useState(7.67);
   const [selected, setSelected] = useState<(typeof places)[number] | null>(null);
@@ -132,59 +132,69 @@ export default function HistoricalMap() {
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
+
     const map = new maplibregl.Map({
       container: containerRef.current,
       center: MADINAH_CENTER,
-      zoom: 15.1,
-      minZoom: 10,
+      zoom: 16.0,
+      minZoom: 11,
       maxZoom: 19.5,
-      pitch: 24,
+      pitch: 18,
       bearing: 0,
       attributionControl: false,
       style: {
         version: 8,
-        glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
         sources: {
           farms: { type: 'geojson', data: geo.farms },
           streets: { type: 'geojson', data: geo.streets },
           buildings: { type: 'geojson', data: geo.buildings },
           palms: { type: 'geojson', data: geo.palms },
           wells: { type: 'geojson', data: geo.wells },
-          labels: { type: 'geojson', data: geo.labels },
         },
         layers: [
           { id: 'ground', type: 'background', paint: { 'background-color': '#c8b998' } },
-          { id: 'farm-fill', type: 'fill', source: 'farms', paint: { 'fill-color': '#7e8b62', 'fill-opacity': 0.43 } },
-          { id: 'farm-outline', type: 'line', source: 'farms', paint: { 'line-color': '#65724f', 'line-width': 1.4, 'line-opacity': 0.55 } },
-          { id: 'street-casing', type: 'line', source: 'streets', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#8a795d', 'line-width': ['interpolate', ['linear'], ['zoom'], 11, 2.5, 17, 12], 'line-opacity': 0.72 } },
-          { id: 'street-fill', type: 'line', source: 'streets', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#cbbd9f', 'line-width': ['interpolate', ['linear'], ['zoom'], 11, 1.2, 17, 8], 'line-opacity': 0.96 } },
-          { id: 'building-footprints', type: 'fill', source: 'buildings', minzoom: 13.2, maxzoom: 15.4, paint: { 'fill-color': ['match', ['get', 'tone'], 0, '#9f7b55', 1, '#ac865e', 2, '#92704e', '#b18b64'], 'fill-opacity': 0.95, 'fill-outline-color': '#6e533a' } },
-          { id: 'buildings-3d', type: 'fill-extrusion', source: 'buildings', minzoom: 15.4, paint: { 'fill-extrusion-color': ['match', ['get', 'tone'], 0, '#9f7b55', 1, '#ad8860', 2, '#94714f', '#b28c65'], 'fill-extrusion-height': ['get', 'height'], 'fill-extrusion-base': 0, 'fill-extrusion-opacity': 0.96, 'fill-extrusion-vertical-gradient': true } },
-          { id: 'palms', type: 'circle', source: 'palms', minzoom: 11.5, maxzoom: 16.2, paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 1.3, 16, 4.8], 'circle-color': '#3f5f3d', 'circle-stroke-color': '#2f452f', 'circle-stroke-width': 0.7, 'circle-opacity': 0.88 } },
-          { id: 'wells', type: 'circle', source: 'wells', paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 3, 17, 9], 'circle-color': '#557985', 'circle-stroke-color': '#e7d8b4', 'circle-stroke-width': 2 } },
-          { id: 'place-labels', type: 'symbol', source: 'labels', minzoom: 13.2, layout: { 'text-field': ['get', 'name'], 'text-font': ['Open Sans Regular'], 'text-size': ['interpolate', ['linear'], ['zoom'], 13, 11, 17, 15], 'text-offset': [0, 1.1], 'text-anchor': 'top' }, paint: { 'text-color': '#3f372d', 'text-halo-color': '#eadfc8', 'text-halo-width': 1.4 } },
+          { id: 'farm-fill', type: 'fill', source: 'farms', paint: { 'fill-color': '#7a865f', 'fill-opacity': 0.34 } },
+          { id: 'farm-outline', type: 'line', source: 'farms', paint: { 'line-color': '#66714e', 'line-width': 1.1, 'line-opacity': 0.5 } },
+
+          { id: 'street-shadow', type: 'line', source: 'streets', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#7f715d', 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 2.5, 16, 8, 19, 18], 'line-opacity': 0.55 } },
+          { id: 'street-surface', type: 'line', source: 'streets', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#d5c6a7', 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 1.3, 16, 5.5, 19, 14], 'line-opacity': 0.98 } },
+
+          { id: 'building-footprints', type: 'fill', source: 'buildings', minzoom: 13.4, maxzoom: 15.8, paint: { 'fill-color': ['match', ['get', 'tone'], 0, '#9c7651', 1, '#ad855c', 2, '#8f6a49', 3, '#b18a61', '#a27c55'], 'fill-opacity': 0.98, 'fill-outline-color': '#654a34' } },
+          { id: 'building-outlines', type: 'line', source: 'buildings', minzoom: 14.0, maxzoom: 15.8, paint: { 'line-color': '#5f4633', 'line-width': ['interpolate', ['linear'], ['zoom'], 14, 0.45, 16, 1.1], 'line-opacity': 0.8 } },
+          { id: 'buildings-3d', type: 'fill-extrusion', source: 'buildings', minzoom: 15.8, paint: { 'fill-extrusion-color': ['match', ['get', 'tone'], 0, '#9c7651', 1, '#ad855c', 2, '#8f6a49', 3, '#b18a61', '#a27c55'], 'fill-extrusion-height': ['get', 'height'], 'fill-extrusion-base': 0, 'fill-extrusion-opacity': 0.98, 'fill-extrusion-vertical-gradient': true } },
+
+          { id: 'palms', type: 'circle', source: 'palms', minzoom: 15.1, maxzoom: 16.7, paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 15, 1.2, 16.7, 2.8], 'circle-color': '#3f5f3d', 'circle-stroke-color': '#2f452f', 'circle-stroke-width': 0.45, 'circle-opacity': 0.72 } },
+          { id: 'wells', type: 'circle', source: 'wells', minzoom: 13.5, paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 13.5, 2.5, 17, 7], 'circle-color': '#557985', 'circle-stroke-color': '#eadcbf', 'circle-stroke-width': 2 } },
         ]
       }
     });
 
     map.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: true }), 'top-left');
-    map.on('load', () => { map.addLayer(createLifeLayer(map, agents) as any); setReady(true); });
-    map.on('zoom', () => setZoom(map.getZoom()));
-    map.on('click', (e) => {
-      let best: typeof places[number] | null = null; let dist = Infinity;
-      for (const p of places) {
-        const dx = p.coordinates[0] - e.lngLat.lng; const dy = p.coordinates[1] - e.lngLat.lat; const d = dx * dx + dy * dy;
-        if (d < dist) { dist = d; best = p; }
-      }
-      if (best && dist < 0.00008) setSelected(best);
+
+    map.on('load', () => {
+      map.addLayer(createLifeLayer(map, agents) as any);
+
+      // Use DOM markers for Arabic place names so shaping remains correct on mobile browsers.
+      places.forEach((p) => {
+        const el = document.createElement('button');
+        el.type = 'button';
+        el.className = 'historical-map-label';
+        el.textContent = p.name;
+        el.addEventListener('click', (ev) => { ev.stopPropagation(); setSelected(p); });
+        new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat(p.coordinates).addTo(map);
+      });
+
+      setReady(true);
     });
 
+    map.on('zoom', () => setZoom(map.getZoom()));
     mapRef.current = map;
+
     return () => { map.remove(); mapRef.current = null; };
   }, [agents, geo]);
 
-  const simMode = zoom < 13.2 ? 'إقليمي' : zoom < 15.4 ? 'خريطة عمرانية' : zoom < 16.15 ? 'مبانٍ ثلاثية الأبعاد' : 'محاكاة حياة';
-  const visibleCount = zoom >= 16.15 ? agents.length : 0;
+  const simMode = zoom < 13.4 ? 'إقليمي' : zoom < 15.8 ? 'خريطة عمرانية' : zoom < 16.5 ? 'مبانٍ ثلاثية الأبعاد' : 'محاكاة حياة';
+  const visibleCount = zoom >= 16.5 ? agents.length : 0;
   const totalMinutes = Math.round(hour * 60);
   const timeLabel = `${String(Math.floor(totalMinutes / 60) % 24).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`;
 
@@ -195,7 +205,7 @@ export default function HistoricalMap() {
           <small>MAPLIBRE · WEBGL · إعادة بناء تاريخية</small>
           <h1>المدينة المنورة</h1>
         </div>
-        <button className="icon-button" aria-label="إعادة تمركز الخريطة" onClick={() => mapRef.current?.easeTo({ center: MADINAH_CENTER, zoom: 15.1, pitch: 24, bearing: 0, duration: 700 })}>⌖</button>
+        <button className="icon-button" aria-label="إعادة تمركز الخريطة" onClick={() => mapRef.current?.easeTo({ center: MADINAH_CENTER, zoom: 16.0, pitch: 18, bearing: 0, duration: 700 })}>⌖</button>
       </header>
 
       <section className="map-wrap">
@@ -213,9 +223,9 @@ export default function HistoricalMap() {
       </section>
 
       <nav className="bottom-nav" aria-label="التنقل">
-        <button className="active" onClick={() => mapRef.current?.easeTo({ zoom: 15.1, pitch: 20, duration: 700 })}>استكشف</button>
+        <button className="active" onClick={() => mapRef.current?.easeTo({ zoom: 16.0, pitch: 18, duration: 700 })}>استكشف</button>
         <button onClick={() => mapRef.current?.easeTo({ zoom: 17.2, pitch: 55, duration: 900 })}>الحياة</button>
-        <button onClick={() => mapRef.current?.easeTo({ zoom: 14.2, pitch: 8, duration: 800 })}>الواحة</button>
+        <button onClick={() => mapRef.current?.easeTo({ zoom: 14.3, pitch: 8, duration: 800 })}>الواحة</button>
         <button onClick={() => setSelected(places[1])}>دليل</button>
       </nav>
     </main>
