@@ -12,7 +12,7 @@ const TERRAIN_BOUNDS: [number, number, number, number] = [39.57, 24.43, 39.655, 
 type LayerState = { buildings: boolean; routes: boolean; farms: boolean; wells: boolean; landmarks: boolean; terrain: boolean };
 
 const placeIcon: Record<string, string> = {
-  'mosque-area': '◈', settlement: '⌂', farm: '♧', well: '◉', route: '↝', terrain: '△'
+  'mosque-area': '◈', settlement: '⌂', farm: '♧', well: '◉', route: '↝', terrain: '△', market: '◇', residential: '▦'
 };
 
 export default function HistoricalMapPhoto() {
@@ -67,7 +67,25 @@ export default function HistoricalMapPhoto() {
           { id: 'terrain-hillshade', type: 'hillshade', source: 'terrainDem', layout: { visibility: 'none' }, paint: { 'hillshade-exaggeration': 0.35, 'hillshade-shadow-color': '#5f4a35', 'hillshade-highlight-color': '#e8d6ad', 'hillshade-accent-color': '#8d7656', 'hillshade-illumination-direction': 315 } },
           { id: 'farm-overlay', type: 'fill', source: 'farms', layout: { visibility: 'none' }, paint: { 'fill-color': '#6d7d45', 'fill-opacity': 0.2, 'fill-outline-color': '#687044' } },
           { id: 'route-overlay', type: 'line', source: 'routes', layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#f0d39d', 'line-width': ['interpolate', ['linear'], ['zoom'], 14, 1.4, 18, 5.5], 'line-opacity': 0.75 } },
-          { id: 'buildings-3d', type: 'fill-extrusion', source: 'buildings', minzoom: 15.8, paint: { 'fill-extrusion-color': ['match', ['get', 'tone'], 0, '#9e7653', 1, '#af845c', 2, '#8d6849', 3, '#b08760', '#a27a55'], 'fill-extrusion-height': ['get', 'height'], 'fill-extrusion-base': 0, 'fill-extrusion-opacity': 0, 'fill-extrusion-vertical-gradient': true } },
+          {
+            id: 'buildings-3d', type: 'fill-extrusion', source: 'buildings', minzoom: 15.8,
+            filter: ['<=', ['get', 'start_year'], 622],
+            paint: {
+              'fill-extrusion-color': [
+                'match', ['get', 'kind'],
+                'early-mosque', '#b98b5d',
+                'mosque-shade', '#8f6947',
+                'hujra', '#a97750',
+                'compound-wall', '#8e6647',
+                'annex', '#9b704d',
+                ['match', ['get', 'tone'], 0, '#9e7653', 1, '#af845c', 2, '#8d6849', 3, '#b08760', 4, '#a27a55', '#9c7350']
+              ],
+              'fill-extrusion-height': ['get', 'height'],
+              'fill-extrusion-base': ['coalesce', ['get', 'base_height'], 0],
+              'fill-extrusion-opacity': 0,
+              'fill-extrusion-vertical-gradient': true
+            }
+          },
           { id: 'wells', type: 'circle', source: 'wells', minzoom: 15.4, paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 15.4, 2.5, 18, 6], 'circle-color': '#416c77', 'circle-stroke-color': '#f0e1bf', 'circle-stroke-width': 2 } }
         ]
       }
@@ -84,7 +102,7 @@ export default function HistoricalMapPhoto() {
           event.stopPropagation();
           setSelected(p);
           setIs3D(true);
-          map.easeTo({ center: p.coordinates, zoom: Math.max(map.getZoom(), 16.6), pitch: 54, bearing: -12, duration: 900 });
+          map.easeTo({ center: p.coordinates, zoom: Math.max(map.getZoom(), 16.8), pitch: 58, bearing: -12, duration: 950 });
         });
         return new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat(p.coordinates).addTo(map);
       });
@@ -104,6 +122,7 @@ export default function HistoricalMapPhoto() {
     map.setPaintProperty('historical-raster-622', 'raster-opacity', 1);
     map.setPaintProperty('historical-raster-627', 'raster-opacity', Math.max(0, Math.min(1, opacity627)));
     map.setPaintProperty('historical-raster-632', 'raster-opacity', Math.max(0, Math.min(1, opacity632)));
+    map.setFilter('buildings-3d', ['<=', ['get', 'start_year'], year]);
   }, [year, ready]);
 
   useEffect(() => {
@@ -112,7 +131,7 @@ export default function HistoricalMapPhoto() {
     const terrainOn = is3D && layers.terrain;
     map.setTerrain(terrainOn ? { source: 'terrainDem', exaggeration: 1.35 } : null);
     map.setLayoutProperty('terrain-hillshade', 'visibility', terrainOn ? 'visible' : 'none');
-    map.setPaintProperty('buildings-3d', 'fill-extrusion-opacity', is3D && layers.buildings ? 0.82 : 0);
+    map.setPaintProperty('buildings-3d', 'fill-extrusion-opacity', is3D && layers.buildings ? 0.88 : 0);
     map.setLayoutProperty('route-overlay', 'visibility', layers.routes ? 'visible' : 'none');
     map.setLayoutProperty('farm-overlay', 'visibility', layers.farms ? 'visible' : 'none');
     map.setLayoutProperty('wells', 'visibility', layers.wells ? 'visible' : 'none');
@@ -121,10 +140,10 @@ export default function HistoricalMapPhoto() {
 
   const setThreeD = (next: boolean) => {
     setIs3D(next);
-    mapRef.current?.easeTo({ zoom: next ? Math.max(zoom, 16.8) : Math.min(zoom, 16.2), pitch: next ? 60 : 0, bearing: next ? -18 : 0, duration: 950 });
+    mapRef.current?.easeTo({ zoom: next ? Math.max(zoom, 16.9) : Math.min(zoom, 16.2), pitch: next ? 60 : 0, bearing: next ? -18 : 0, duration: 950 });
   };
   const toggle3D = () => setThreeD(!is3D);
-  const simMode = is3D ? (layers.terrain ? 'تضاريس ومبانٍ ثلاثية الأبعاد' : 'مبانٍ ثلاثية الأبعاد') : zoom < 14 ? 'منظر جوي إقليمي' : zoom < 16 ? 'خريطة جوية زمنية' : 'تفاصيل جوية';
+  const simMode = is3D ? (layers.terrain ? 'عمارة تاريخية وتضاريس 3D' : 'عمارة تاريخية ثلاثية الأبعاد') : zoom < 14 ? 'منظر جوي إقليمي' : zoom < 16 ? 'خريطة جوية زمنية' : 'تفاصيل جوية';
   const totalMinutes = Math.round(hour * 60);
   const timeLabel = `${String(Math.floor(totalMinutes / 60) % 24).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`;
 
@@ -142,7 +161,7 @@ export default function HistoricalMapPhoto() {
       <section className="map-wrap">
         <div ref={containerRef} className="map" />
         <div className="map-toolbar"><button onClick={() => setLayersOpen((v) => !v)}>☷ الطبقات</button><button onClick={toggle3D}>{is3D ? '▱ عرض جوي' : '▰ استكشف 3D'}</button></div>
-        {layersOpen && <div className="layers-panel"><strong>طبقات الخريطة</strong>{(Object.keys(layers) as (keyof LayerState)[]).map((key) => { const names: Record<keyof LayerState, string> = { buildings: 'المباني المجسمة', routes: 'المسارات', farms: 'الزراعة', wells: 'الآبار', landmarks: 'المعالم', terrain: 'التضاريس ثلاثية الأبعاد' }; return <label key={key}><span>{names[key]}</span><input type="checkbox" checked={layers[key]} onChange={() => setLayers((s) => ({ ...s, [key]: !s[key] }))} /></label>; })}</div>}
+        {layersOpen && <div className="layers-panel"><strong>طبقات الخريطة</strong>{(Object.keys(layers) as (keyof LayerState)[]).map((key) => { const names: Record<keyof LayerState, string> = { buildings: 'المجمعات والعمارة', routes: 'المسارات', farms: 'الزراعة', wells: 'الآبار', landmarks: 'المعالم', terrain: 'التضاريس ثلاثية الأبعاد' }; return <label key={key}><span>{names[key]}</span><input type="checkbox" checked={layers[key]} onChange={() => setLayers((s) => ({ ...s, [key]: !s[key] }))} /></label>; })}</div>}
         <div className="status-pill">{ready ? '● جاهز' : 'جارٍ التحميل…'} · {simMode}</div>
         <div className="activity-card"><strong>{timeLabel}</strong><span>{currentActivity.activity}</span></div>
         <div className="diagnostics"><span>{growthLabel}</span><span>{is3D && layers.terrain ? 'DEM ×1.35' : `Z ${zoom.toFixed(1)}`}</span><span>{year}</span></div>
