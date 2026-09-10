@@ -36,6 +36,10 @@ function clickScene(id: string) {
   el?.click();
 }
 
+function clickExisting(selector: string) {
+  document.querySelector<HTMLElement>(selector)?.click();
+}
+
 function resetMap() {
   document.querySelector<HTMLElement>('button[aria-label="إعادة تمركز"]')?.click();
 }
@@ -44,6 +48,7 @@ export default function ExplorerDeck() {
   const [activeId, setActiveId] = useState(scenes[0].id);
   const [category, setCategory] = useState<SceneCategory>('all');
   const [touring, setTouring] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const stepRef = useRef(0);
   const filteredScenes = useMemo(() => category === 'all' ? scenes : scenes.filter((scene) => scene.category === category), [category]);
   const activeScene = scenes.find((scene) => scene.id === activeId) ?? scenes[0];
@@ -54,7 +59,7 @@ export default function ExplorerDeck() {
       setActiveId(filteredScenes[0]?.id ?? scenes[0].id);
     }
     stepRef.current = 0;
-  }, [category]);
+  }, [category, activeId, filteredScenes]);
 
   useEffect(() => {
     if (!touring || filteredScenes.length === 0) return;
@@ -68,6 +73,25 @@ export default function ExplorerDeck() {
     const id = window.setInterval(run, 6500);
     return () => window.clearInterval(id);
   }, [touring, filteredScenes]);
+
+  useEffect(() => {
+    const sync = () => {
+      const focused = document.querySelector<HTMLElement>('.landmark-marker.focused');
+      if (focused?.dataset.placeId) setActiveId(focused.dataset.placeId);
+    };
+    const id = window.setInterval(sync, 500);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowLeft') move(1);
+      if (event.key === 'ArrowRight') move(-1);
+      if (event.key === 'Escape') setCollapsed(true);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
   const open = (id: string) => {
     setTouring(false);
@@ -83,68 +107,78 @@ export default function ExplorerDeck() {
   };
 
   return (
-    <aside className={styles.shell} aria-label="لوحة الاستكشاف التاريخي">
-      <div className={styles.rail}>
-        <section className={styles.panel}>
-          <div className={styles.head}>
-            <div className={styles.eyebrow}><span>استكشاف تفاعلي</span><span>622–632م</span></div>
-            <h2>المدينة المنورة في العهد النبوي</h2>
-            <p>اختر معلمًا للانتقال مباشرة إلى زاوية عرض قريبة، ثم تنقّل بين طبقات المكان والزمن.</p>
-          </div>
+    <aside className={`${styles.shell} ${collapsed ? styles.collapsedShell : ''}`} aria-label="لوحة الاستكشاف التاريخي">
+      <button className={styles.collapseButton} onClick={() => setCollapsed((v) => !v)} aria-label={collapsed ? 'فتح المستكشف' : 'إخفاء المستكشف'}>
+        {collapsed ? '☰' : '×'}
+      </button>
 
-          <div className={styles.filters} role="tablist" aria-label="تصنيف المعالم">
-            {(Object.keys(categoryLabels) as SceneCategory[]).map((key) => (
-              <button key={key} className={category === key ? styles.activeFilter : ''} onClick={() => setCategory(key)}>{categoryLabels[key]}</button>
-            ))}
-          </div>
-
-          <div className={styles.actions}>
-            <button className={touring ? styles.active : ''} onClick={() => setTouring((v) => !v)}>{touring ? 'إيقاف الجولة' : 'جولة تلقائية'}</button>
-            <button onClick={() => { setTouring(false); resetMap(); }}>نظرة عامة</button>
-          </div>
-
-          <div className={styles.featured}>
-            <div className={styles.featuredIcon}>{activeScene.icon}</div>
-            <div className={styles.featuredText}>
-              <small>المشهد الحالي</small>
-              <strong>{activeScene.title}</strong>
-              <span>{activeScene.meta}</span>
+      {!collapsed && (
+        <div className={styles.rail}>
+          <section className={styles.panel}>
+            <div className={styles.head}>
+              <div className={styles.eyebrow}><span>استكشاف تفاعلي</span><span>622–632م</span></div>
+              <h2>المدينة المنورة في العهد النبوي</h2>
+              <p>اختر معلمًا للانتقال مباشرة إلى زاوية عرض قريبة، ثم تنقّل بين طبقات المكان والزمن.</p>
             </div>
-            <div className={styles.confidence}>الثقة: {activeScene.confidence}</div>
-          </div>
 
-          <div className={styles.navigator}>
-            <button aria-label="المعلم السابق" onClick={() => move(-1)}>‹</button>
-            <div><b>{activeIndex + 1}</b><span>/</span><span>{filteredScenes.length}</span></div>
-            <button aria-label="المعلم التالي" onClick={() => move(1)}>›</button>
-          </div>
+            <div className={styles.filters} role="tablist" aria-label="تصنيف المعالم">
+              {(Object.keys(categoryLabels) as SceneCategory[]).map((key) => (
+                <button key={key} className={category === key ? styles.activeFilter : ''} onClick={() => setCategory(key)}>{categoryLabels[key]}</button>
+              ))}
+            </div>
 
-          <div className={styles.list}>
-            {filteredScenes.map((scene) => (
-              <button key={scene.id} className={`${styles.card} ${activeId === scene.id ? styles.active : ''}`} onClick={() => open(scene.id)}>
-                <span className={styles.badge}>{scene.icon}</span>
-                <span className={styles.cardText}><b>{scene.title}</b><small>{scene.meta}</small></span>
-                <span className={styles.chevron}>←</span>
-              </button>
-            ))}
-          </div>
+            <div className={styles.actions}>
+              <button className={touring ? styles.active : ''} onClick={() => setTouring((v) => !v)}>{touring ? 'إيقاف الجولة' : 'جولة تلقائية'}</button>
+              <button onClick={() => { setTouring(false); resetMap(); }}>نظرة عامة</button>
+              <button onClick={() => clickExisting('.map-toolbar button:nth-child(2)')}>3D</button>
+              <button onClick={() => clickExisting('.map-toolbar button:first-child')}>الطبقات</button>
+            </div>
 
-          <div className={styles.footer}>إعادة بناء تاريخية تقديرية. بعض المواقع والتفاصيل العمرانية تقريبية بحسب مستوى الدليل المتاح.</div>
-        </section>
-      </div>
+            <div className={styles.featured}>
+              <div className={styles.featuredIcon}>{activeScene.icon}</div>
+              <div className={styles.featuredText}>
+                <small>المشهد الحالي</small>
+                <strong>{activeScene.title}</strong>
+                <span>{activeScene.meta}</span>
+              </div>
+              <div className={styles.confidence}>الثقة: {activeScene.confidence}</div>
+            </div>
 
-      <div className={styles.mobileStrip}>
-        {filteredScenes.map((scene) => (
-          <article key={scene.id} className={`${styles.mobileCard} ${activeId === scene.id ? styles.mobileActive : ''}`}>
-            <div className={styles.mobileTop}><span>{scene.icon}</span><small>{scene.confidence}</small></div>
-            <b>{scene.title}</b>
-            <small>{scene.meta}</small>
-            <button onClick={() => open(scene.id)}>استكشف</button>
-          </article>
-        ))}
-      </div>
+            <div className={styles.navigator}>
+              <button aria-label="المعلم السابق" onClick={() => move(-1)}>‹</button>
+              <div><b>{activeIndex + 1}</b><span>/</span><span>{filteredScenes.length}</span></div>
+              <button aria-label="المعلم التالي" onClick={() => move(1)}>›</button>
+            </div>
 
-      <div className={styles.hint}>{touring ? 'الجولة التلقائية تعمل الآن' : `${activeScene.icon} ${activeScene.title}`}</div>
+            <div className={styles.list}>
+              {filteredScenes.map((scene) => (
+                <button key={scene.id} className={`${styles.card} ${activeId === scene.id ? styles.active : ''}`} onClick={() => open(scene.id)}>
+                  <span className={styles.badge}>{scene.icon}</span>
+                  <span className={styles.cardText}><b>{scene.title}</b><small>{scene.meta}</small></span>
+                  <span className={styles.chevron}>←</span>
+                </button>
+              ))}
+            </div>
+
+            <div className={styles.footer}>إعادة بناء تاريخية تقديرية. بعض المواقع والتفاصيل العمرانية تقريبية بحسب مستوى الدليل المتاح.</div>
+          </section>
+        </div>
+      )}
+
+      {!collapsed && (
+        <div className={styles.mobileStrip}>
+          {filteredScenes.map((scene) => (
+            <article key={scene.id} className={`${styles.mobileCard} ${activeId === scene.id ? styles.mobileActive : ''}`}>
+              <div className={styles.mobileTop}><span>{scene.icon}</span><small>{scene.confidence}</small></div>
+              <b>{scene.title}</b>
+              <small>{scene.meta}</small>
+              <button onClick={() => open(scene.id)}>استكشف</button>
+            </article>
+          ))}
+        </div>
+      )}
+
+      {!collapsed && <div className={styles.hint}>{touring ? 'الجولة التلقائية تعمل الآن' : `${activeScene.icon} ${activeScene.title}`}</div>}
     </aside>
   );
 }
