@@ -2,8 +2,8 @@
 
 import dynamic from 'next/dynamic';
 
-const HistoricalMap = dynamic(() => import('@/components/HistoricalMap'), { ssr: false });
+const HistoricalMapPhoto = dynamic(() => import('@/components/HistoricalMapPhoto'), { ssr: false });
 
 export default function HomePage() {
-  return <HistoricalMap />;
+  return <HistoricalMapPhoto />;
 }
