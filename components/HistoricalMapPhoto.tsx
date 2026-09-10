@@ -10,7 +10,7 @@ export default function HistoricalMapPhoto() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const [ready, setReady] = useState(false);
-  const [zoom, setZoom] = useState(15.8);
+  const [zoom, setZoom] = useState(15.2);
   const [year, setYear] = useState(622);
   const [hour, setHour] = useState(7.67);
   const [selected, setSelected] = useState<(typeof places)[number] | null>(null);
@@ -32,44 +32,69 @@ export default function HistoricalMapPhoto() {
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
-
     const basePath = window.location.pathname.startsWith('/-madinah-simulation') ? '/-madinah-simulation' : '';
 
     const map = new maplibregl.Map({
       container: containerRef.current,
       center: MADINAH_CENTER,
-      zoom: 15.8,
-      minZoom: 11,
+      zoom: 15.2,
+      minZoom: 13,
       maxZoom: 19.5,
-      pitch: 18,
+      pitch: 0,
       bearing: 0,
       attributionControl: false,
       style: {
         version: 8,
         sources: {
-          historicalAerial: {
-            type: 'image',
-            url: `${basePath}/historical-base.svg`,
-            coordinates: [
-              [39.585, 24.490],
-              [39.640, 24.490],
-              [39.640, 24.445],
-              [39.585, 24.445]
-            ]
+          historicalRaster: {
+            type: 'raster',
+            tiles: [`${basePath}/tiles/{z}/{x}/{y}.png`],
+            tileSize: 512,
+            minzoom: 13,
+            maxzoom: 16,
+            bounds: [39.585, 24.445, 39.640, 24.490]
           },
-          streets: { type: 'geojson', data: geo.streets },
           buildings: { type: 'geojson', data: geo.buildings },
           wells: { type: 'geojson', data: geo.wells },
         },
         layers: [
-          { id: 'fallback-ground', type: 'background', paint: { 'background-color': '#b7a37e' } },
-          { id: 'historical-aerial', type: 'raster', source: 'historicalAerial', paint: { 'raster-opacity': 1, 'raster-resampling': 'linear' } },
-          { id: 'street-casing', type: 'line', source: 'streets', minzoom: 14.3, layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#735f47', 'line-width': ['interpolate', ['linear'], ['zoom'], 14, 1.8, 18, 8], 'line-opacity': 0.35 } },
-          { id: 'street-fill', type: 'line', source: 'streets', minzoom: 14.3, layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#cbb58d', 'line-width': ['interpolate', ['linear'], ['zoom'], 14, 1.0, 18, 5.6], 'line-opacity': 0.6 } },
-          { id: 'building-roofs', type: 'fill', source: 'buildings', minzoom: 14.8, maxzoom: 16.3, paint: { 'fill-color': ['match', ['get', 'tone'], 0, '#a77d58', 1, '#b58a61', 2, '#936d4d', 3, '#ae835d', '#a57b56'], 'fill-opacity': 0.72, 'fill-outline-color': '#664b35' } },
-          { id: 'building-shadow', type: 'line', source: 'buildings', minzoom: 15.1, maxzoom: 16.3, paint: { 'line-color': '#4b3b2f', 'line-width': 1.2, 'line-opacity': 0.32 } },
-          { id: 'buildings-3d', type: 'fill-extrusion', source: 'buildings', minzoom: 16.3, paint: { 'fill-extrusion-color': ['match', ['get', 'tone'], 0, '#9e7653', 1, '#af845c', 2, '#8d6849', 3, '#b08760', '#a27a55'], 'fill-extrusion-height': ['get', 'height'], 'fill-extrusion-base': 0, 'fill-extrusion-opacity': 0.92, 'fill-extrusion-vertical-gradient': true } },
-          { id: 'wells', type: 'circle', source: 'wells', minzoom: 14.5, paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 14.5, 2.5, 18, 7], 'circle-color': '#4f7780', 'circle-stroke-color': '#e8dcc2', 'circle-stroke-width': 2 } },
+          { id: 'fallback-ground', type: 'background', paint: { 'background-color': '#b29a72' } },
+          {
+            id: 'historical-raster',
+            type: 'raster',
+            source: 'historicalRaster',
+            minzoom: 13,
+            paint: {
+              'raster-opacity': 1,
+              'raster-resampling': 'linear',
+              'raster-fade-duration': 120
+            }
+          },
+          {
+            id: 'buildings-3d',
+            type: 'fill-extrusion',
+            source: 'buildings',
+            minzoom: 17.2,
+            paint: {
+              'fill-extrusion-color': ['match', ['get', 'tone'], 0, '#9e7653', 1, '#af845c', 2, '#8d6849', 3, '#b08760', '#a27a55'],
+              'fill-extrusion-height': ['get', 'height'],
+              'fill-extrusion-base': 0,
+              'fill-extrusion-opacity': 0.82,
+              'fill-extrusion-vertical-gradient': true
+            }
+          },
+          {
+            id: 'wells',
+            type: 'circle',
+            source: 'wells',
+            minzoom: 15.7,
+            paint: {
+              'circle-radius': ['interpolate', ['linear'], ['zoom'], 15.7, 2.5, 18, 7],
+              'circle-color': '#4f7780',
+              'circle-stroke-color': '#e8dcc2',
+              'circle-stroke-width': 2
+            }
+          }
         ]
       }
     });
@@ -93,14 +118,10 @@ export default function HistoricalMapPhoto() {
 
     map.on('zoom', () => setZoom(map.getZoom()));
     mapRef.current = map;
-
-    return () => {
-      map.remove();
-      mapRef.current = null;
-    };
+    return () => { map.remove(); mapRef.current = null; };
   }, [geo]);
 
-  const simMode = zoom < 13.5 ? 'منظر إقليمي' : zoom < 15.0 ? 'خريطة جوية' : zoom < 16.3 ? 'تفاصيل عمرانية' : 'مبانٍ ثلاثية الأبعاد';
+  const simMode = zoom < 14 ? 'منظر جوي إقليمي' : zoom < 16 ? 'خريطة جوية Raster' : zoom < 17.2 ? 'تفاصيل جوية عالية' : 'منظور ثلاثي الأبعاد';
   const totalMinutes = Math.round(hour * 60);
   const timeLabel = `${String(Math.floor(totalMinutes / 60) % 24).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`;
 
@@ -108,23 +129,20 @@ export default function HistoricalMapPhoto() {
     <main className="app-shell">
       <header className="topbar">
         <div>
-          <small>إعادة بناء جوية تاريخية · MAPLIBRE</small>
+          <small>إعادة بناء جوية تاريخية · RASTER TILE MAP</small>
           <h1>المدينة المنورة</h1>
         </div>
         <div className="top-actions">
           <button className="study-button" onClick={() => setStudyOpen(true)}>الدراسة</button>
-          <button className="icon-button" aria-label="إعادة تمركز الخريطة" onClick={() => mapRef.current?.easeTo({ center: MADINAH_CENTER, zoom: 15.8, pitch: 18, bearing: 0, duration: 700 })}>⌖</button>
+          <button className="icon-button" aria-label="إعادة تمركز الخريطة" onClick={() => mapRef.current?.easeTo({ center: MADINAH_CENTER, zoom: 15.2, pitch: 0, bearing: 0, duration: 700 })}>⌖</button>
         </div>
       </header>
 
       <section className="map-wrap">
         <div ref={containerRef} className="map" />
-        <div className="status-pill">{ready ? '● جاهز' : 'جارٍ تحميل الخريطة…'} · {simMode} · Z {zoom.toFixed(1)}</div>
-        <div className="activity-card">
-          <strong>{timeLabel}</strong>
-          <span>{currentActivity.activity}</span>
-        </div>
-        <div className="diagnostics"><span>Historical aerial reconstruction</span><span>Z {zoom.toFixed(1)}</span><span>{year}</span></div>
+        <div className="status-pill">{ready ? '● جاهز' : 'جارٍ تحميل البلاطات…'} · {simMode} · Z {zoom.toFixed(1)}</div>
+        <div className="activity-card"><strong>{timeLabel}</strong><span>{currentActivity.activity}</span></div>
+        <div className="diagnostics"><span>Raster tile pyramid</span><span>Z {zoom.toFixed(1)}</span><span>{year}</span></div>
         {selected && <article className="place-card"><button onClick={() => setSelected(null)}>×</button><h2>{selected.name}</h2><p>{selected.description}</p><strong>الثقة التاريخية: {selected.confidence}</strong></article>}
       </section>
 
@@ -136,8 +154,8 @@ export default function HistoricalMapPhoto() {
       </section>
 
       <nav className="bottom-nav" aria-label="التنقل">
-        <button className="active" onClick={() => mapRef.current?.easeTo({ zoom: 15.8, pitch: 18, duration: 700 })}>استكشف</button>
-        <button onClick={() => mapRef.current?.easeTo({ zoom: 17.1, pitch: 52, duration: 900 })}>المباني</button>
+        <button className="active" onClick={() => mapRef.current?.easeTo({ zoom: 15.2, pitch: 0, duration: 700 })}>استكشف</button>
+        <button onClick={() => mapRef.current?.easeTo({ zoom: 17.6, pitch: 50, duration: 900 })}>المباني</button>
         <button onClick={() => mapRef.current?.easeTo({ zoom: 13.6, pitch: 0, duration: 800 })}>الواحة</button>
         <button onClick={() => setStudyOpen(true)}>المعرفة</button>
       </nav>
@@ -146,24 +164,17 @@ export default function HistoricalMapPhoto() {
         <div className="study-backdrop" role="presentation" onClick={() => setStudyOpen(false)}>
           <aside className="study-drawer" role="dialog" aria-modal="true" aria-label="محتوى الدراسة" onClick={(event) => event.stopPropagation()}>
             <div className="study-head">
-              <div>
-                <small>{studyMeta.period}</small>
-                <h2>{studyMeta.title}</h2>
-              </div>
+              <div><small>{studyMeta.period}</small><h2>{studyMeta.title}</h2></div>
               <button onClick={() => setStudyOpen(false)} aria-label="إغلاق">×</button>
             </div>
             <p className="study-note">{studyMeta.note}</p>
             <div className="study-tabs">
-              {studySections.map((section) => (
-                <button key={section.id} className={studySection === section.id ? 'active' : ''} onClick={() => setStudySection(section.id)}>{section.title}</button>
-              ))}
+              {studySections.map((section) => <button key={section.id} className={studySection === section.id ? 'active' : ''} onClick={() => setStudySection(section.id)}>{section.title}</button>)}
             </div>
             <section className="study-content">
               <h3>{activeStudySection.title}</h3>
               <p>{activeStudySection.summary}</p>
-              <ul>
-                {activeStudySection.facts.map((fact) => <li key={fact}>{fact}</li>)}
-              </ul>
+              <ul>{activeStudySection.facts.map((fact) => <li key={fact}>{fact}</li>)}</ul>
             </section>
           </aside>
         </div>
