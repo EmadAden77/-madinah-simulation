@@ -79,7 +79,7 @@ export default function HistoricalMapPhoto() {
         sources: {
           raster622: rasterSource(622), raster627: rasterSource(627), raster632: rasterSource(632),
           terrainDem: { type: 'raster-dem', tiles: [`${basePath}/terrain/{z}/{x}/{y}.png`], tileSize: 256, minzoom: 11, maxzoom: 15, bounds: TERRAIN_BOUNDS, encoding: 'mapbox' },
-          buildings: { type: 'geojson', data: geo.buildings }, wells: { type: 'geojson', data: geo.wells }, routes: { type: 'geojson', data: geo.streets }, farms: { type: 'geojson', data: geo.farms },
+          buildings: { type: 'geojson', data: `${basePath}/reconstruction/buildings.geojson` }, wells: { type: 'geojson', data: geo.wells }, routes: { type: 'geojson', data: geo.streets }, farms: { type: 'geojson', data: geo.farms },
           living: { type: 'geojson', data: makeLivingSnapshot({ year: 622, hour: 7.67, tick: 0 }) }
         },
         layers: [
