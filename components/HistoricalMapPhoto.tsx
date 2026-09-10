@@ -8,12 +8,28 @@ import { simulationRules, studyMeta, studySections } from '@/lib/studyData';
 
 const RASTER_BOUNDS: [number, number, number, number] = [39.585, 24.445, 39.640, 24.490];
 const TERRAIN_BOUNDS: [number, number, number, number] = [39.57, 24.43, 39.655, 24.505];
+const LANDMARK_KINDS = ['early-mosque', 'mosque-shade', 'hujra'];
 
 type LayerState = { buildings: boolean; routes: boolean; farms: boolean; wells: boolean; landmarks: boolean; terrain: boolean };
+
+type CameraPreset = { zoom: number; pitch: number; bearing: number; duration: number };
 
 const placeIcon: Record<string, string> = {
   'mosque-area': '◈', settlement: '⌂', farm: '♧', well: '◉', route: '↝', terrain: '△', market: '◇', residential: '▦'
 };
+
+function cameraPreset(type: string): CameraPreset {
+  switch (type) {
+    case 'mosque-area': return { zoom: 18.15, pitch: 62, bearing: -24, duration: 1350 };
+    case 'residential': return { zoom: 18.0, pitch: 60, bearing: -16, duration: 1250 };
+    case 'market': return { zoom: 17.45, pitch: 52, bearing: 18, duration: 1200 };
+    case 'well': return { zoom: 17.7, pitch: 55, bearing: 12, duration: 1150 };
+    case 'farm': return { zoom: 16.8, pitch: 46, bearing: -8, duration: 1150 };
+    case 'terrain': return { zoom: 15.5, pitch: 64, bearing: 28, duration: 1300 };
+    case 'route': return { zoom: 16.7, pitch: 48, bearing: 10, duration: 1100 };
+    default: return { zoom: 17.0, pitch: 56, bearing: -14, duration: 1150 };
+  }
+}
 
 export default function HistoricalMapPhoto() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -42,6 +58,8 @@ export default function HistoricalMapPhoto() {
     if (!containerRef.current || mapRef.current) return;
     const basePath = window.location.pathname.startsWith('/-madinah-simulation') ? '/-madinah-simulation' : '';
     const rasterSource = (epoch: 622 | 627 | 632) => ({ type: 'raster' as const, tiles: [`${basePath}/tiles/${epoch}/{z}/{x}/{y}.png`], tileSize: 512, minzoom: 13, maxzoom: 17, bounds: RASTER_BOUNDS });
+    const genericFilter = ['all', ['<=', ['get', 'start_year'], 622], ['!', ['in', ['get', 'kind'], ['literal', LANDMARK_KINDS]]]] as any;
+    const landmarkFilter = ['all', ['<=', ['get', 'start_year'], 622], ['in', ['get', 'kind'], ['literal', LANDMARK_KINDS]]] as any;
 
     const map = new maplibregl.Map({
       container: containerRef.current,
@@ -49,6 +67,7 @@ export default function HistoricalMapPhoto() {
       zoom: 15.6,
       minZoom: 13,
       maxZoom: 19.5,
+      maxPitch: 68,
       pitch: 0,
       bearing: 0,
       attributionControl: false,
@@ -68,22 +87,30 @@ export default function HistoricalMapPhoto() {
           { id: 'farm-overlay', type: 'fill', source: 'farms', layout: { visibility: 'none' }, paint: { 'fill-color': '#6d7d45', 'fill-opacity': 0.2, 'fill-outline-color': '#687044' } },
           { id: 'route-overlay', type: 'line', source: 'routes', layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#f0d39d', 'line-width': ['interpolate', ['linear'], ['zoom'], 14, 1.4, 18, 5.5], 'line-opacity': 0.75 } },
           {
-            id: 'buildings-3d', type: 'fill-extrusion', source: 'buildings', minzoom: 15.8,
-            filter: ['<=', ['get', 'start_year'], 622],
+            id: 'buildings-lod-far', type: 'fill-extrusion', source: 'buildings', minzoom: 15.6, maxzoom: 17.15, filter: genericFilter,
+            paint: {
+              'fill-extrusion-color': ['match', ['get', 'tone'], 0, '#9a7351', 1, '#aa8059', 2, '#8c6748', 3, '#aa815a', 4, '#9d7552', '#98704e'],
+              'fill-extrusion-height': ['get', 'height'], 'fill-extrusion-base': ['coalesce', ['get', 'base_height'], 0],
+              'fill-extrusion-opacity': 0, 'fill-extrusion-vertical-gradient': true
+            }
+          },
+          {
+            id: 'buildings-lod-near', type: 'fill-extrusion', source: 'buildings', minzoom: 17.15, filter: genericFilter,
             paint: {
               'fill-extrusion-color': [
-                'match', ['get', 'kind'],
-                'early-mosque', '#b98b5d',
-                'mosque-shade', '#8f6947',
-                'hujra', '#a97750',
-                'compound-wall', '#8e6647',
-                'annex', '#9b704d',
+                'match', ['get', 'kind'], 'compound-wall', '#856047', 'annex', '#956b4b',
                 ['match', ['get', 'tone'], 0, '#9e7653', 1, '#af845c', 2, '#8d6849', 3, '#b08760', 4, '#a27a55', '#9c7350']
               ],
-              'fill-extrusion-height': ['get', 'height'],
-              'fill-extrusion-base': ['coalesce', ['get', 'base_height'], 0],
-              'fill-extrusion-opacity': 0,
-              'fill-extrusion-vertical-gradient': true
+              'fill-extrusion-height': ['get', 'height'], 'fill-extrusion-base': ['coalesce', ['get', 'base_height'], 0],
+              'fill-extrusion-opacity': 0, 'fill-extrusion-vertical-gradient': true
+            }
+          },
+          {
+            id: 'landmark-buildings-3d', type: 'fill-extrusion', source: 'buildings', minzoom: 16.2, filter: landmarkFilter,
+            paint: {
+              'fill-extrusion-color': ['match', ['get', 'kind'], 'early-mosque', '#c29767', 'mosque-shade', '#76563c', 'hujra', '#ad7952', '#a77a55'],
+              'fill-extrusion-height': ['get', 'height'], 'fill-extrusion-base': ['coalesce', ['get', 'base_height'], 0],
+              'fill-extrusion-opacity': 0, 'fill-extrusion-vertical-gradient': true
             }
           },
           { id: 'wells', type: 'circle', source: 'wells', minzoom: 15.4, paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 15.4, 2.5, 18, 6], 'circle-color': '#416c77', 'circle-stroke-color': '#f0e1bf', 'circle-stroke-width': 2 } }
@@ -96,13 +123,15 @@ export default function HistoricalMapPhoto() {
       markersRef.current = places.map((p) => {
         const el = document.createElement('button');
         el.type = 'button';
+        el.dataset.placeId = p.id;
         el.className = `landmark-marker landmark-${p.type}`;
         el.innerHTML = `<span>${placeIcon[p.type] ?? '•'}</span><b>${p.name}</b>`;
         el.addEventListener('click', (event) => {
           event.stopPropagation();
+          const preset = cameraPreset(p.type);
           setSelected(p);
           setIs3D(true);
-          map.easeTo({ center: p.coordinates, zoom: Math.max(map.getZoom(), 16.8), pitch: 58, bearing: -12, duration: 950 });
+          map.flyTo({ center: p.coordinates, zoom: preset.zoom, pitch: preset.pitch, bearing: preset.bearing, duration: preset.duration, essential: true });
         });
         return new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat(p.coordinates).addTo(map);
       });
@@ -122,28 +151,49 @@ export default function HistoricalMapPhoto() {
     map.setPaintProperty('historical-raster-622', 'raster-opacity', 1);
     map.setPaintProperty('historical-raster-627', 'raster-opacity', Math.max(0, Math.min(1, opacity627)));
     map.setPaintProperty('historical-raster-632', 'raster-opacity', Math.max(0, Math.min(1, opacity632)));
-    map.setFilter('buildings-3d', ['<=', ['get', 'start_year'], year]);
+    const genericFilter = ['all', ['<=', ['get', 'start_year'], year], ['!', ['in', ['get', 'kind'], ['literal', LANDMARK_KINDS]]]] as any;
+    const landmarkFilter = ['all', ['<=', ['get', 'start_year'], year], ['in', ['get', 'kind'], ['literal', LANDMARK_KINDS]]] as any;
+    map.setFilter('buildings-lod-far', genericFilter);
+    map.setFilter('buildings-lod-near', genericFilter);
+    map.setFilter('landmark-buildings-3d', landmarkFilter);
   }, [year, ready]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
     const terrainOn = is3D && layers.terrain;
+    const buildingOn = is3D && layers.buildings;
     map.setTerrain(terrainOn ? { source: 'terrainDem', exaggeration: 1.35 } : null);
     map.setLayoutProperty('terrain-hillshade', 'visibility', terrainOn ? 'visible' : 'none');
-    map.setPaintProperty('buildings-3d', 'fill-extrusion-opacity', is3D && layers.buildings ? 0.88 : 0);
+    map.setPaintProperty('buildings-lod-far', 'fill-extrusion-opacity', buildingOn ? 0.72 : 0);
+    map.setPaintProperty('buildings-lod-near', 'fill-extrusion-opacity', buildingOn ? 0.91 : 0);
+    map.setPaintProperty('landmark-buildings-3d', 'fill-extrusion-opacity', buildingOn ? 0.98 : 0);
     map.setLayoutProperty('route-overlay', 'visibility', layers.routes ? 'visible' : 'none');
     map.setLayoutProperty('farm-overlay', 'visibility', layers.farms ? 'visible' : 'none');
     map.setLayoutProperty('wells', 'visibility', layers.wells ? 'visible' : 'none');
     markersRef.current.forEach((marker) => { marker.getElement().style.display = layers.landmarks ? '' : 'none'; });
   }, [layers, is3D, ready]);
 
+  useEffect(() => {
+    markersRef.current.forEach((marker) => {
+      const el = marker.getElement();
+      el.classList.toggle('focused', Boolean(selected && el.dataset.placeId === selected.id));
+    });
+  }, [selected]);
+
   const setThreeD = (next: boolean) => {
     setIs3D(next);
     mapRef.current?.easeTo({ zoom: next ? Math.max(zoom, 16.9) : Math.min(zoom, 16.2), pitch: next ? 60 : 0, bearing: next ? -18 : 0, duration: 950 });
   };
+  const focusSelected = () => {
+    if (!selected || !mapRef.current) return;
+    const preset = cameraPreset(selected.type);
+    setIs3D(true);
+    mapRef.current.flyTo({ center: selected.coordinates, zoom: preset.zoom, pitch: preset.pitch, bearing: preset.bearing, duration: preset.duration, essential: true });
+  };
   const toggle3D = () => setThreeD(!is3D);
-  const simMode = is3D ? (layers.terrain ? 'عمارة تاريخية وتضاريس 3D' : 'عمارة تاريخية ثلاثية الأبعاد') : zoom < 14 ? 'منظر جوي إقليمي' : zoom < 16 ? 'خريطة جوية زمنية' : 'تفاصيل جوية';
+  const lodLabel = zoom < 17.15 ? 'LOD خفيف' : 'LOD تفصيلي';
+  const simMode = is3D ? (layers.terrain ? `استكشاف 3D · ${lodLabel}` : `عمارة 3D · ${lodLabel}`) : zoom < 14 ? 'منظر جوي إقليمي' : zoom < 16 ? 'خريطة جوية زمنية' : 'تفاصيل جوية';
   const totalMinutes = Math.round(hour * 60);
   const timeLabel = `${String(Math.floor(totalMinutes / 60) % 24).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`;
 
@@ -164,8 +214,8 @@ export default function HistoricalMapPhoto() {
         {layersOpen && <div className="layers-panel"><strong>طبقات الخريطة</strong>{(Object.keys(layers) as (keyof LayerState)[]).map((key) => { const names: Record<keyof LayerState, string> = { buildings: 'المجمعات والعمارة', routes: 'المسارات', farms: 'الزراعة', wells: 'الآبار', landmarks: 'المعالم', terrain: 'التضاريس ثلاثية الأبعاد' }; return <label key={key}><span>{names[key]}</span><input type="checkbox" checked={layers[key]} onChange={() => setLayers((s) => ({ ...s, [key]: !s[key] }))} /></label>; })}</div>}
         <div className="status-pill">{ready ? '● جاهز' : 'جارٍ التحميل…'} · {simMode}</div>
         <div className="activity-card"><strong>{timeLabel}</strong><span>{currentActivity.activity}</span></div>
-        <div className="diagnostics"><span>{growthLabel}</span><span>{is3D && layers.terrain ? 'DEM ×1.35' : `Z ${zoom.toFixed(1)}`}</span><span>{year}</span></div>
-        {selected && <article className="place-card"><button onClick={() => setSelected(null)}>×</button><h2>{selected.name}</h2><p>{selected.description}</p><strong>الثقة التاريخية: {selected.confidence}</strong></article>}
+        <div className="diagnostics"><span>{growthLabel}</span><span>{is3D ? lodLabel : `Z ${zoom.toFixed(1)}`}</span><span>{year}</span></div>
+        {selected && <article className="place-card"><button onClick={() => setSelected(null)}>×</button><h2>{selected.name}</h2><p>{selected.description}</p><strong>الثقة التاريخية: {selected.confidence}</strong><div className="place-actions"><button onClick={focusSelected}>استكشف المعلم 3D</button></div></article>}
       </section>
 
       <section className="timeline-panel">
