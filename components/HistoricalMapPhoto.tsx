@@ -6,6 +6,8 @@ import { MADINAH_CENTER, makeHistoricalGeoJSON, places } from '@/lib/historicalD
 import { calculatePrayerTimes } from '@/lib/prayerTimes';
 import { simulationRules, studyMeta, studySections } from '@/lib/studyData';
 
+const RASTER_BOUNDS: [number, number, number, number] = [39.585, 24.445, 39.640, 24.490];
+
 export default function HistoricalMapPhoto() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -30,9 +32,26 @@ export default function HistoricalMapPhoto() {
       ?? simulationRules.activityByHour[0];
   }, [hour]);
 
+  const growthLabel = year <= 623
+    ? 'بداية المرحلة المدنية'
+    : year <= 627
+      ? 'نمو عمراني مبكر'
+      : year <= 630
+        ? 'اتساع التجمع والعمران'
+        : 'أواخر العهد النبوي';
+
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
     const basePath = window.location.pathname.startsWith('/-madinah-simulation') ? '/-madinah-simulation' : '';
+
+    const rasterSource = (epoch: 622 | 627 | 632) => ({
+      type: 'raster' as const,
+      tiles: [`${basePath}/tiles/${epoch}/{z}/{x}/{y}.png`],
+      tileSize: 512,
+      minzoom: 13,
+      maxzoom: 17,
+      bounds: RASTER_BOUNDS
+    });
 
     const map = new maplibregl.Map({
       container: containerRef.current,
@@ -46,30 +65,17 @@ export default function HistoricalMapPhoto() {
       style: {
         version: 8,
         sources: {
-          historicalRaster: {
-            type: 'raster',
-            tiles: [`${basePath}/tiles/{z}/{x}/{y}.png`],
-            tileSize: 512,
-            minzoom: 13,
-            maxzoom: 17,
-            bounds: [39.585, 24.445, 39.640, 24.490]
-          },
+          raster622: rasterSource(622),
+          raster627: rasterSource(627),
+          raster632: rasterSource(632),
           buildings: { type: 'geojson', data: geo.buildings },
           wells: { type: 'geojson', data: geo.wells },
         },
         layers: [
           { id: 'fallback-ground', type: 'background', paint: { 'background-color': '#b29a72' } },
-          {
-            id: 'historical-raster',
-            type: 'raster',
-            source: 'historicalRaster',
-            minzoom: 13,
-            paint: {
-              'raster-opacity': 1,
-              'raster-resampling': 'linear',
-              'raster-fade-duration': 100
-            }
-          },
+          { id: 'historical-raster-622', type: 'raster', source: 'raster622', minzoom: 13, paint: { 'raster-opacity': 1, 'raster-resampling': 'linear', 'raster-fade-duration': 120 } },
+          { id: 'historical-raster-627', type: 'raster', source: 'raster627', minzoom: 13, paint: { 'raster-opacity': 0, 'raster-resampling': 'linear', 'raster-fade-duration': 120 } },
+          { id: 'historical-raster-632', type: 'raster', source: 'raster632', minzoom: 13, paint: { 'raster-opacity': 0, 'raster-resampling': 'linear', 'raster-fade-duration': 120 } },
           {
             id: 'buildings-3d',
             type: 'fill-extrusion',
@@ -121,7 +127,25 @@ export default function HistoricalMapPhoto() {
     return () => { map.remove(); mapRef.current = null; };
   }, [geo]);
 
-  const simMode = zoom < 14 ? 'منظر جوي إقليمي' : zoom < 16 ? 'خريطة جوية Raster' : zoom < 17.5 ? 'تفاصيل جوية فائقة' : 'منظور ثلاثي الأبعاد';
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+
+    let opacity627 = 0;
+    let opacity632 = 0;
+    if (year <= 627) {
+      opacity627 = (year - 622) / 5;
+    } else {
+      opacity627 = 1;
+      opacity632 = (year - 627) / 5;
+    }
+
+    map.setPaintProperty('historical-raster-622', 'raster-opacity', 1);
+    map.setPaintProperty('historical-raster-627', 'raster-opacity', Math.max(0, Math.min(1, opacity627)));
+    map.setPaintProperty('historical-raster-632', 'raster-opacity', Math.max(0, Math.min(1, opacity632)));
+  }, [year, ready]);
+
+  const simMode = zoom < 14 ? 'منظر جوي إقليمي' : zoom < 16 ? 'خريطة جوية زمنية' : zoom < 17.5 ? 'تفاصيل جوية فائقة' : 'منظور ثلاثي الأبعاد';
   const totalMinutes = Math.round(hour * 60);
   const timeLabel = `${String(Math.floor(totalMinutes / 60) % 24).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`;
 
@@ -129,7 +153,7 @@ export default function HistoricalMapPhoto() {
     <main className="app-shell">
       <header className="topbar">
         <div>
-          <small>إعادة بناء جوية تاريخية · RASTER TILE MAP</small>
+          <small>إعادة بناء جوية تاريخية · TEMPORAL RASTER MAP</small>
           <h1>المدينة المنورة</h1>
         </div>
         <div className="top-actions">
@@ -142,12 +166,12 @@ export default function HistoricalMapPhoto() {
         <div ref={containerRef} className="map" />
         <div className="status-pill">{ready ? '● جاهز' : 'جارٍ تحميل البلاطات…'} · {simMode} · Z {zoom.toFixed(1)}</div>
         <div className="activity-card"><strong>{timeLabel}</strong><span>{currentActivity.activity}</span></div>
-        <div className="diagnostics"><span>Photoreal raster Z13–17</span><span>Z {zoom.toFixed(1)}</span><span>{year}</span></div>
+        <div className="diagnostics"><span>Temporal Raster 622→632</span><span>{growthLabel}</span><span>{year}</span></div>
         {selected && <article className="place-card"><button onClick={() => setSelected(null)}>×</button><h2>{selected.name}</h2><p>{selected.description}</p><strong>الثقة التاريخية: {selected.confidence}</strong></article>}
       </section>
 
       <section className="timeline-panel">
-        <div className="time-row"><span>الزمن المحاكى</span><b>{year} · {timeLabel}</b></div>
+        <div className="time-row"><span>الزمن المحاكى · {growthLabel}</span><b>{year} · {timeLabel}</b></div>
         <label>السنة <input type="range" min="622" max="632" value={year} onChange={(e) => setYear(Number(e.target.value))} /></label>
         <label>الوقت <input type="range" min="0" max="23.75" step="0.25" value={hour} onChange={(e) => setHour(Number(e.target.value))} /></label>
         <div className="prayers"><span>الفجر {prayerTimes.fajr}</span><span>الظهر {prayerTimes.dhuhr}</span><span>العصر {prayerTimes.asr}</span><span>المغرب {prayerTimes.maghrib}</span><span>العشاء {prayerTimes.isha}</span></div>
