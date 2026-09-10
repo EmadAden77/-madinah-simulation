@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import './explorer.css';
 
 export const metadata: Metadata = {
   title: 'المدينة المنورة في القرن السابع',
