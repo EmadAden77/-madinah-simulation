@@ -62,13 +62,10 @@ function rectanglePolygon(lng: number, lat: number, widthM: number, depthM: numb
   const metersPerLat = 111320;
   const hw = widthM / 2;
   const hd = depthM / 2;
-  const corners = [
-    [-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd], [-hw, -hd]
-  ].map(([x, y]) => {
+  return [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd], [-hw, -hd]].map(([x, y]) => {
     const [rx, ry] = rotatePoint(x, y, angle);
     return [lng + rx / metersPerLng, lat + ry / metersPerLat];
   });
-  return corners;
 }
 
 export function makeHistoricalGeoJSON() {
@@ -79,67 +76,69 @@ export function makeHistoricalGeoJSON() {
   const farms: GeoJSON.Feature[] = [];
   const labels: GeoJSON.Feature[] = [];
 
-  // Dense, irregular settlement clusters. These are reconstruction geometry, not claims of exact footprints.
   const clusters = [
-    { lng: 39.6111, lat: 24.4672, count: 92, spreadLng: 0.0042, spreadLat: 0.0033 },
-    { lng: 39.6064, lat: 24.4700, count: 38, spreadLng: 0.0025, spreadLat: 0.0022 },
-    { lng: 39.6158, lat: 24.4638, count: 34, spreadLng: 0.0027, spreadLat: 0.0020 },
+    { lng: 39.6111, lat: 24.4672, count: 260, spreadLng: 0.0048, spreadLat: 0.0039, angle: 0.05 },
+    { lng: 39.6064, lat: 24.4700, count: 115, spreadLng: 0.0031, spreadLat: 0.0027, angle: -0.18 },
+    { lng: 39.6158, lat: 24.4638, count: 105, spreadLng: 0.0032, spreadLat: 0.0026, angle: 0.22 },
+    { lng: 39.6142, lat: 24.4708, count: 72, spreadLng: 0.0027, spreadLat: 0.0024, angle: -0.12 },
   ];
 
   let idx = 0;
   for (const cluster of clusters) {
+    const cols = Math.ceil(Math.sqrt(cluster.count * 1.25));
+    const rows = Math.ceil(cluster.count / cols);
     for (let i = 0; i < cluster.count; i++, idx++) {
-      const lng = cluster.lng + (seeded(idx * 7 + 1) - 0.5) * cluster.spreadLng;
-      const lat = cluster.lat + (seeded(idx * 7 + 2) - 0.5) * cluster.spreadLat;
-      const width = 7 + seeded(idx * 7 + 3) * 12;
-      const depth = 6 + seeded(idx * 7 + 4) * 11;
-      const height = 2.8 + seeded(idx * 7 + 5) * 2.6;
-      const angle = (seeded(idx * 7 + 6) - 0.5) * 0.5;
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const nx = cols <= 1 ? 0 : col / (cols - 1) - 0.5;
+      const ny = rows <= 1 ? 0 : row / (rows - 1) - 0.5;
+      const jitterLng = (seeded(idx * 11 + 1) - 0.5) * 0.00012;
+      const jitterLat = (seeded(idx * 11 + 2) - 0.5) * 0.00010;
+      const [rx, ry] = rotatePoint(nx * cluster.spreadLng, ny * cluster.spreadLat, cluster.angle);
+      const lng = cluster.lng + rx + jitterLng;
+      const lat = cluster.lat + ry + jitterLat;
+      const width = 8 + seeded(idx * 11 + 3) * 15;
+      const depth = 7 + seeded(idx * 11 + 4) * 13;
+      const height = 2.7 + seeded(idx * 11 + 5) * 2.7;
+      const angle = cluster.angle + (seeded(idx * 11 + 6) - 0.5) * 0.12;
       buildings.push({
         type: 'Feature',
-        properties: {
-          kind: 'house',
-          height,
-          base_height: 0,
-          tone: idx % 4,
-          confidence: 'plausible',
-        },
+        properties: { kind: 'house', height, base_height: 0, tone: idx % 5, confidence: 'plausible' },
         geometry: { type: 'Polygon', coordinates: [rectanglePolygon(lng, lat, width, depth, angle)] }
       });
     }
   }
 
-  // Historical path network rendered with road casing + fill, visually closer to a proper map.
-  const streetSets: [number, number][][] = [
+  const mainStreets: [number, number][][] = [
     [[39.595,24.458],[39.601,24.462],[39.606,24.465],[39.611,24.467],[39.617,24.471],[39.624,24.476]],
     [[39.600,24.481],[39.605,24.474],[39.611,24.467],[39.616,24.461],[39.621,24.454]],
     [[39.596,24.469],[39.603,24.469],[39.611,24.467],[39.619,24.466],[39.627,24.464]],
-    [[39.604,24.458],[39.607,24.463],[39.610,24.468],[39.613,24.474]],
-    [[39.608,24.474],[39.611,24.471],[39.614,24.468],[39.618,24.466]],
-    [[39.603,24.465],[39.606,24.467],[39.609,24.469],[39.612,24.470]],
-    [[39.609,24.463],[39.611,24.465],[39.614,24.467],[39.617,24.470]],
   ];
-  streetSets.forEach((coords, i) => streets.push({
-    type: 'Feature',
-    properties: { kind: i < 3 ? 'main-path' : 'local-path', width: i < 3 ? 3.2 : 1.8 },
-    geometry: { type: 'LineString', coordinates: coords }
-  }));
+  mainStreets.forEach((coords, i) => streets.push({ type: 'Feature', properties: { kind: 'main-path', width: 4.2, i }, geometry: { type: 'LineString', coordinates: coords } }));
 
-  // Oasis/agriculture polygons.
+  const localCenters = [[39.6111,24.4672],[39.6064,24.4700],[39.6158,24.4638],[39.6142,24.4708]];
+  localCenters.forEach(([lng, lat], c) => {
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2 + c * 0.27;
+      const len = 0.0010 + seeded(c * 50 + i) * 0.0015;
+      streets.push({
+        type: 'Feature',
+        properties: { kind: 'local-path', width: 2.1, i: c * 10 + i },
+        geometry: { type: 'LineString', coordinates: [[lng - Math.cos(a) * len * 0.25, lat - Math.sin(a) * len * 0.20],[lng + Math.cos(a) * len, lat + Math.sin(a) * len * 0.78]] }
+      });
+    }
+  });
+
   const farmPolys = [
     [[39.596,24.459],[39.604,24.459],[39.605,24.468],[39.599,24.472],[39.594,24.468],[39.596,24.459]],
     [[39.615,24.456],[39.622,24.456],[39.625,24.463],[39.621,24.469],[39.615,24.466],[39.615,24.456]],
     [[39.600,24.472],[39.607,24.475],[39.610,24.482],[39.603,24.485],[39.597,24.480],[39.600,24.472]],
   ];
-  farmPolys.forEach((coords, i) => farms.push({
-    type: 'Feature',
-    properties: { kind: 'farm', i },
-    geometry: { type: 'Polygon', coordinates: [coords] }
-  }));
+  farmPolys.forEach((coords, i) => farms.push({ type: 'Feature', properties: { kind: 'farm', i }, geometry: { type: 'Polygon', coordinates: [coords] } }));
 
-  for (let i = 0; i < 240; i++) {
+  for (let i = 0; i < 210; i++) {
     const a = seeded(i + 100) * Math.PI * 2;
-    const r = 0.002 + seeded(i + 130) * 0.0105;
+    const r = 0.0025 + seeded(i + 130) * 0.0105;
     const westBias = i % 3 === 0 ? -0.004 : 0.0015;
     const lng = MADINAH_CENTER[0] + Math.cos(a) * r + westBias;
     const lat = MADINAH_CENTER[1] + Math.sin(a) * r * 0.8;
@@ -150,11 +149,7 @@ export function makeHistoricalGeoJSON() {
     wells.push({ type: 'Feature', properties: { kind: 'well', i }, geometry: { type: 'Point', coordinates: c } });
   });
 
-  places.forEach((p) => labels.push({
-    type: 'Feature',
-    properties: { name: p.name, type: p.type, confidence: p.confidence },
-    geometry: { type: 'Point', coordinates: p.coordinates }
-  }));
+  places.forEach((p) => labels.push({ type: 'Feature', properties: { name: p.name, type: p.type, confidence: p.confidence }, geometry: { type: 'Point', coordinates: p.coordinates } }));
 
   return {
     buildings: { type: 'FeatureCollection', features: buildings } as GeoJSON.FeatureCollection,
