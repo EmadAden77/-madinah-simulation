@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node scripts/generateHistoricalTilesV2.mjs",
+    "prebuild": "node scripts/generateHistoricalTilesV3.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
