@@ -3,7 +3,7 @@ export type HistoricalConfidence = 'documented' | 'high' | 'plausible' | 'unknow
 export type HistoricalPlace = {
   id: string;
   name: string;
-  type: 'settlement' | 'well' | 'farm' | 'route' | 'mosque-area' | 'terrain';
+  type: 'settlement' | 'well' | 'farm' | 'route' | 'mosque-area' | 'terrain' | 'market' | 'residential';
   coordinates: [number, number];
   confidence: HistoricalConfidence;
   description: string;
@@ -26,7 +26,31 @@ export const places: HistoricalPlace[] = [
     type: 'mosque-area',
     coordinates: [39.6114, 24.4675],
     confidence: 'high',
-    description: 'موضع تعليمي تقريبي ضمن نموذج زمني مبكر، مع تجنب إسقاط الهيئة الحديثة للمسجد.'
+    description: 'تمثيل تعليمي للمسجد في المرحلة المبكرة بمواد محلية بسيطة ومن دون إسقاط الهيئة الحديثة للمسجد على القرن السابع.'
+  },
+  {
+    id: 'hujurat-east',
+    name: 'الحجرات شرقي المسجد',
+    type: 'residential',
+    coordinates: [39.61178, 24.46748],
+    confidence: 'high',
+    description: 'موضع تقريبي للحجرات المتصلة بالجانب الشرقي من المسجد. الهيئة والأبعاد البصرية في النموذج تقريبية ومقيدة بوصف العمارة البسيطة في المصادر.'
+  },
+  {
+    id: 'manakha-market',
+    name: 'سوق المناخة',
+    type: 'market',
+    coordinates: [39.6099, 24.4671],
+    confidence: 'high',
+    description: 'تمثيل تقريبي للسوق المفتوح غرب المسجد، بلا صفوف دكاكين حجرية ثابتة، مع فضاء ترابي ومسارات قوافل مؤقتة.'
+  },
+  {
+    id: 'baqi-direction',
+    name: 'المسار نحو البقيع',
+    type: 'route',
+    coordinates: [39.6131, 24.4668],
+    confidence: 'plausible',
+    description: 'مسار تعليمي تقريبي يوضح اتصال المركز بمحيطه الشرقي، وليس إعادة رسم لمسار أثري قطعي.'
   },
   {
     id: 'oasis-west',
@@ -42,7 +66,7 @@ export const places: HistoricalPlace[] = [
     type: 'terrain',
     coordinates: [39.625, 24.468],
     confidence: 'high',
-    description: 'تمثيل بصري مبسط للأرض البركانية شرق الواحة.'
+    description: 'إشارة إلى نطاق الحرة القديمة شرقي الواحة ضمن السياق الجغرافي العام، من دون تصوير ثوران أو حمم حديثة داخل مركز المدينة.'
   }
 ];
 
@@ -107,6 +131,21 @@ export function makeHistoricalGeoJSON() {
         geometry: { type: 'Polygon', coordinates: [rectanglePolygon(lng, lat, width, depth, angle)] }
       });
     }
+  }
+
+  // Close-range 3D geometry for the early central complex. These are explicitly approximate reconstructions.
+  buildings.push({
+    type: 'Feature',
+    properties: { kind: 'early-mosque', height: 3.1, base_height: 0, tone: 1, confidence: 'high' },
+    geometry: { type: 'Polygon', coordinates: [rectanglePolygon(39.6114, 24.4675, 34, 31, 0.02)] }
+  });
+  for (let i = 0; i < 8; i++) {
+    const lat = 24.46777 - i * 0.000075;
+    buildings.push({
+      type: 'Feature',
+      properties: { kind: 'hujra', height: 2.55 + (i % 2) * 0.15, base_height: 0, tone: 2 + (i % 2), confidence: 'high' },
+      geometry: { type: 'Polygon', coordinates: [rectanglePolygon(39.61179, lat, 5.1, 4.1, 0.02)] }
+    });
   }
 
   const mainStreets: [number, number][][] = [
