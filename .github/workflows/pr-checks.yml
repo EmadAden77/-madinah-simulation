@@ -30,6 +30,9 @@ jobs:
           sudo apt-get install -y blender
           blender --version
 
+      - name: Make Blender script compatible with runner version
+        run: sed -i 's/BLENDER_EEVEE_NEXT/BLENDER_EEVEE/g' tools/blender/build_core.py
+
       - name: Build authored core in Blender
         run: blender --background --python tools/blender/build_core.py
 
@@ -37,8 +40,8 @@ jobs:
         run: |
           test -f public/assets/city/core.glb
           test -f tools/blender/generated/core-authored.blend
-          test -f tools/blender/generated/core-authoring-report.json
-          ls -lh public/assets/city/core.glb tools/blender/generated/core-authored.blend tools/blender/generated/core-authoring-report.json
+          test -f public/assets/city/core-authoring-report.json
+          ls -lh public/assets/city/core.glb tools/blender/generated/core-authored.blend public/assets/city/core-authoring-report.json
 
       - name: Upload authored core artifacts
         uses: actions/upload-artifact@v4
@@ -47,7 +50,7 @@ jobs:
           path: |
             public/assets/city/core.glb
             tools/blender/generated/core-authored.blend
-            tools/blender/generated/core-authoring-report.json
+            public/assets/city/core-authoring-report.json
           if-no-files-found: error
 
       - name: TypeScript
