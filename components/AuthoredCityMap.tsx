@@ -26,6 +26,7 @@ export default function AuthoredCityMap() {
       minZoom: 13,
       maxZoom: 19.5,
       attributionControl: false,
+      canvasContextAttributes: { antialias: true },
       style: {
         version: 8,
         sources: {},
@@ -39,17 +40,19 @@ export default function AuthoredCityMap() {
 
     const anchor = MercatorCoordinate.fromLngLat({ lng: MADINAH_CENTER[0], lat: MADINAH_CENTER[1] }, 0)
     const meterScale = anchor.meterInMercatorCoordinateUnits()
+    const rotationX = new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(1, 0, 0), Math.PI / 2)
 
     let scene: THREE.Scene
     let camera: THREE.Camera
     let renderer: THREE.WebGLRenderer
     let core: THREE.Object3D | null = null
+    let renderErrorReported = false
 
     const layer = {
       id: 'authored-core-3d',
       type: 'custom' as const,
       renderingMode: '3d' as const,
-      onAdd(_map: maplibregl.Map, gl: WebGL2RenderingContext) {
+      onAdd(_map: maplibregl.Map, gl: WebGLRenderingContext | WebGL2RenderingContext) {
         scene = new THREE.Scene()
         camera = new THREE.Camera()
 
@@ -73,11 +76,9 @@ export default function AuthoredCityMap() {
               object.frustumCulled = true
               object.castShadow = false
               object.receiveShadow = false
-              object.matrixAutoUpdate = false
-              object.updateMatrix()
             })
             scene.add(core)
-            setStatus('قلب المدينة الحقيقي من Blender محمّل · حرّك وقرّب للمراجعة')
+            setStatus('قلب المدينة الحقيقي من Blender محمّل · جارٍ رسمه على الخريطة…')
             map.triggerRepaint()
           },
           undefined,
@@ -87,20 +88,40 @@ export default function AuthoredCityMap() {
           },
         )
       },
-      render(args: { modelViewProjectionMatrix: Float32Array }) {
-        const projection = new THREE.Matrix4().fromArray(Array.from(args.modelViewProjectionMatrix))
+      render(_gl: WebGLRenderingContext | WebGL2RenderingContext, args: any) {
+        try {
+          const mainMatrix = args?.defaultProjectionData?.mainMatrix
+          if (!mainMatrix) {
+            if (!renderErrorReported) {
+              renderErrorReported = true
+              console.error('MapLibre custom-layer projection matrix missing', args)
+              setStatus('تعذر رسم القطاع: مصفوفة MapLibre غير متاحة')
+            }
+            return
+          }
 
-        // glTF is Y-up, while the MapLibre custom-layer world uses Z as elevation.
-        // Rotate the authored Blender/glTF scene onto the map plane before applying meter scale.
-        const transform = new THREE.Matrix4()
-          .makeTranslation(anchor.x, anchor.y, anchor.z)
-          .scale(new THREE.Vector3(meterScale, -meterScale, meterScale))
-          .multiply(new THREE.Matrix4().makeRotationX(Math.PI / 2))
+          const projection = new THREE.Matrix4().fromArray(mainMatrix)
+          const modelMatrix = new THREE.Matrix4()
+            .makeTranslation(anchor.x, anchor.y, anchor.z)
+            .scale(new THREE.Vector3(meterScale, -meterScale, meterScale))
+            .multiply(rotationX)
 
-        camera.projectionMatrix = projection.multiply(transform)
-        renderer.resetState()
-        renderer.render(scene, camera)
-        map.triggerRepaint()
+          camera.projectionMatrix = projection.multiply(modelMatrix)
+          renderer.resetState()
+          renderer.render(scene, camera)
+
+          if (core && !renderErrorReported) {
+            setStatus('قلب المدينة الحقيقي من Blender ظاهر · حرّك وقرّب للمراجعة')
+            renderErrorReported = true
+          }
+          map.triggerRepaint()
+        } catch (error) {
+          console.error('Failed to render authored core sector', error)
+          if (!renderErrorReported) {
+            renderErrorReported = true
+            setStatus('حدث خطأ أثناء رسم القطاع الثلاثي الأبعاد')
+          }
+        }
       },
       onRemove() {
         if (core) {
