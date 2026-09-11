@@ -6,6 +6,9 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { MADINAH_CENTER } from '@/lib/historicalData'
 
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
+const CORE_ASSET = `${BASE_PATH}/assets/city/core.glb`
+
 export default function AuthoredCityMap() {
   const hostRef = useRef<HTMLDivElement>(null)
   const [status, setStatus] = useState('جارٍ تحميل قلب المدينة المحرر…')
@@ -62,7 +65,7 @@ export default function AuthoredCityMap() {
         renderer.toneMappingExposure = 1.0
 
         new GLTFLoader().load(
-          '/assets/city/core.gltf',
+          CORE_ASSET,
           (gltf) => {
             core = gltf.scene
             core.traverse((object) => {
@@ -74,13 +77,13 @@ export default function AuthoredCityMap() {
               object.updateMatrix()
             })
             scene.add(core)
-            setStatus('قلب المدينة المحرر محمّل على الخريطة · حرّك وقرّب للمراجعة')
+            setStatus('قلب المدينة الحقيقي من Blender محمّل · حرّك وقرّب للمراجعة')
             map.triggerRepaint()
           },
           undefined,
           (error) => {
             console.error('Failed to load authored core sector', error)
-            setStatus('تعذر تحميل أصل قلب المدينة')
+            setStatus('تعذر تحميل core.glb')
           },
         )
       },
