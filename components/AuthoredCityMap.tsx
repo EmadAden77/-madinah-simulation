@@ -89,9 +89,14 @@ export default function AuthoredCityMap() {
       },
       render(args: { modelViewProjectionMatrix: Float32Array }) {
         const projection = new THREE.Matrix4().fromArray(Array.from(args.modelViewProjectionMatrix))
+
+        // glTF is Y-up, while the MapLibre custom-layer world uses Z as elevation.
+        // Rotate the authored Blender/glTF scene onto the map plane before applying meter scale.
         const transform = new THREE.Matrix4()
           .makeTranslation(anchor.x, anchor.y, anchor.z)
           .scale(new THREE.Vector3(meterScale, -meterScale, meterScale))
+          .multiply(new THREE.Matrix4().makeRotationX(Math.PI / 2))
+
         camera.projectionMatrix = projection.multiply(transform)
         renderer.resetState()
         renderer.render(scene, camera)
