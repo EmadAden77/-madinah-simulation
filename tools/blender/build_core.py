@@ -1,14 +1,13 @@
 """Blender-first authoring script for the Madinah Simulation core sector.
 
-This runs inside Blender, never in the browser. It creates an EDITABLE city massing
-scene that is intended to be manually compared with the locked visual reference
-before exporting a static GLB.
+This script produces an editable authored scene, then exports a static GLB for the
+browser. The browser is only the renderer. The visual target is a dense, irregular,
+low-rise earthen settlement with narrow alleys, courtyard compounds, basalt footing,
+partial palm-wood roofs, edge orchards, and a natural transition to open ground.
 
-Important:
-- This is visual massing, not a claim of exact archaeological parcel geometry.
-- Historical landmarks remain governed by the project's historical data layer.
-- Blender is the source of truth for the authored city asset.
-- The layout deliberately avoids rings, grids, broad radial roads, and repeated boxes.
+This remains a historically informed visual reconstruction, not a claim of exact
+archaeological parcel geometry. Landmark identity/meaning remains governed by the
+historical data layer.
 """
 
 import bpy
@@ -28,6 +27,7 @@ COLLECTIONS = [
     "BUILDINGS",
     "COURTYARD_WALLS",
     "ROOFS",
+    "DETAILS",
     "ROUTES",
     "PALMS",
     "AGRICULTURE",
@@ -38,6 +38,8 @@ COLLECTIONS = [
 STATS = {
     "compounds": 0,
     "compound_parts": 0,
+    "doors": 0,
+    "roof_elements": 0,
     "palms": 0,
     "field_patches": 0,
     "route_guides": 0,
@@ -127,118 +129,158 @@ def distance_to_polyline(px, py, points):
     )
 
 
-def build_landmark_shell(clay, roof):
+def nearest_segment_yaw(px, py, polyline):
+    best = None
+    best_dist = 1e9
+    for i in range(len(polyline) - 1):
+        a, b = polyline[i], polyline[i + 1]
+        d = distance_to_segment(px, py, a[0], a[1], b[0], b[1])
+        if d < best_dist:
+            best_dist = d
+            best = math.atan2(b[1] - a[1], b[0] - a[0])
+    return best or 0.0
+
+
+def build_landmark_shell(clay, roof, timber):
     # Schematic only. Final landmark reconstruction remains separately reviewed.
-    w, d, h, t = 42.0, 36.0, 3.2, 1.1
-    add_box("mosque_n", (w, t, h), (0, d / 2, h / 2), collection="LANDMARKS", mat=clay, bevel=0.08)
-    add_box("mosque_s", (w, t, h), (0, -d / 2, h / 2), collection="LANDMARKS", mat=clay, bevel=0.08)
-    add_box("mosque_w", (t, d, h), (-w / 2, 0, h / 2), collection="LANDMARKS", mat=clay, bevel=0.08)
-    add_box("mosque_e", (t, d, h), (w / 2, 0, h / 2), collection="LANDMARKS", mat=clay, bevel=0.08)
-    add_box("mosque_shade", (w - 5, 6.5, 0.24), (0, d / 2 - 4.2, 2.95), collection="ROOFS", mat=roof)
+    w, d, h, t = 42.0, 36.0, 3.2, 1.15
+    for name, dims, pos in [
+        ("mosque_n", (w, t, h), (0, d / 2, h / 2)),
+        ("mosque_s", (w, t, h), (0, -d / 2, h / 2)),
+        ("mosque_w", (t, d, h), (-w / 2, 0, h / 2)),
+        ("mosque_e", (t, d, h), (w / 2, 0, h / 2)),
+    ]:
+        add_box(name, dims, pos, collection="LANDMARKS", mat=clay, bevel=0.10)
+    add_box("mosque_shade", (w - 5, 6.2, 0.22), (0, d / 2 - 4.0, 2.92), collection="ROOFS", mat=roof)
+    for i in range(8):
+        x = -15.5 + i * 4.45
+        add_cylinder(f"mosque_post_{i}", 0.12, 2.8, (x, d / 2 - 4.0, 1.4), "DETAILS", timber, vertices=8)
 
 
-def add_compound(index, cx, cy, yaw, w, d, h, family, clay, deep_clay, basalt, roof):
-    wall = random.uniform(1.65, 2.25)
-    pieces = []
+def add_roof_beams(index, cx, cy, yaw, w, d, h, timber, roof):
+    if index % 2:
+        return
+    # A short covered room bar, with visible palm-trunk beams.
+    cover_d = min(3.0, d * 0.32)
+    rx, ry = local_to_world(cx, cy, yaw, 0, -d / 2 + cover_d / 2 + 0.35)
+    add_box(
+        f"compound_{index:03d}_roof_skin",
+        (w * random.uniform(0.58, 0.82), cover_d, 0.13),
+        (rx, ry, h + 0.08), yaw, collection="ROOFS", mat=roof,
+    )
+    beam_count = max(3, int(w / 2.6))
+    span = w * 0.68
+    for b in range(beam_count):
+        lx = -span / 2 + span * (b / max(1, beam_count - 1))
+        bx, by = local_to_world(cx, cy, yaw, lx, -d / 2 + cover_d / 2 + 0.35)
+        add_box(
+            f"compound_{index:03d}_beam_{b}",
+            (0.15, cover_d + 0.25, 0.14),
+            (bx, by, h + 0.16), yaw, collection="ROOFS", mat=timber,
+        )
+        STATS["roof_elements"] += 1
 
-    if family == 0:  # U courtyard
+
+def add_compound(index, cx, cy, yaw, w, d, h, family, clay_mats, basalt, timber, roof, door_mat):
+    wall = random.uniform(1.35, 1.95)
+    clay = clay_mats[index % len(clay_mats)]
+    accent = clay_mats[(index + 2) % len(clay_mats)]
+
+    if family == 0:  # U-shaped courtyard
         pieces = [
             (0, -d / 2 + wall / 2, w, wall, h),
-            (0, d / 2 - wall / 2, w * 0.82, wall, h * random.uniform(0.82, 0.96)),
-            (-w / 2 + wall / 2, 0, wall, d - 1.7 * wall, h * random.uniform(0.80, 0.94)),
+            (-w / 2 + wall / 2, 0.25, wall, d - 1.4 * wall, h * 0.90),
+            (w / 2 - wall / 2, 0.10, wall, d * 0.72, h * 0.82),
         ]
-    elif family == 1:  # L courtyard
+    elif family == 1:  # L-shaped house
         pieces = [
             (0, -d / 2 + wall / 2, w, wall, h),
-            (-w / 2 + wall / 2, 0, wall, d, h * random.uniform(0.84, 0.98)),
+            (-w / 2 + wall / 2, 0, wall, d, h * 0.88),
+            (w * 0.24, d / 2 - wall / 2, w * 0.34, wall, h * 0.76),
         ]
-    elif family == 2:  # offset court
+    elif family == 2:  # enclosed offset court
         pieces = [
             (0, -d / 2 + wall / 2, w, wall, h),
-            (-w / 2 + wall / 2, 0, wall, d, h * 0.90),
-            (w * 0.18, d / 2 - wall / 2, w * 0.54, wall, h * random.uniform(0.74, 0.88)),
+            (-w / 2 + wall / 2, 0, wall, d, h * 0.92),
+            (w / 2 - wall / 2, d * 0.06, wall, d * 0.63, h * 0.80),
+            (w * 0.12, d / 2 - wall / 2, w * 0.62, wall, h * 0.78),
         ]
-    elif family == 3:  # narrow paired ranges
+    elif family == 3:  # narrow double range
         pieces = [
             (0, -d / 2 + wall / 2, w, wall, h),
-            (-w * 0.10, d / 2 - wall / 2, w * 0.68, wall, h * random.uniform(0.76, 0.90)),
+            (-w * 0.10, d / 2 - wall / 2, w * 0.72, wall, h * 0.82),
+            (-w / 2 + wall / 2, 0, wall, d * 0.58, h * 0.78),
         ]
-    elif family == 4:  # irregular fragments
+    elif family == 4:  # fragmented irregular compound
         pieces = [
-            (-w * 0.14, -d / 2 + wall / 2, w * 0.62, wall, h),
-            (w * 0.23, d / 2 - wall / 2, w * 0.42, wall, h * 0.86),
-            (-w / 2 + wall / 2, -d * 0.09, wall, d * 0.62, h * 0.80),
-            (w / 2 - wall / 2, d * 0.16, wall, d * 0.38, h * 0.74),
+            (-w * 0.12, -d / 2 + wall / 2, w * 0.70, wall, h),
+            (w * 0.20, d / 2 - wall / 2, w * 0.48, wall, h * 0.80),
+            (-w / 2 + wall / 2, -d * 0.08, wall, d * 0.68, h * 0.84),
+            (w / 2 - wall / 2, d * 0.18, wall, d * 0.34, h * 0.70),
         ]
-    else:  # asymmetrical courtyard with one thicker room bar
+    else:  # compact, asymmetrical courtyard
         pieces = [
-            (-w * 0.08, -d / 2 + wall * 0.65, w * 0.84, wall * 1.3, h),
-            (-w / 2 + wall / 2, d * 0.03, wall, d * 0.78, h * 0.88),
-            (w * 0.18, d / 2 - wall / 2, w * 0.48, wall, h * 0.80),
+            (-w * 0.05, -d / 2 + wall * 0.62, w * 0.90, wall * 1.18, h),
+            (-w / 2 + wall / 2, d * 0.02, wall, d * 0.82, h * 0.86),
+            (w / 2 - wall / 2, -d * 0.10, wall, d * 0.52, h * 0.78),
+            (w * 0.16, d / 2 - wall / 2, w * 0.52, wall, h * 0.76),
         ]
 
     for j, (lx, ly, sx, sy, sz) in enumerate(pieces):
         x, y = local_to_world(cx, cy, yaw, lx, ly)
-        sz *= random.uniform(0.96, 1.04)
-        mat = clay if (index + j) % 4 else deep_clay
+        sz *= random.uniform(0.94, 1.06)
         add_box(
             f"compound_{index:03d}_wall_{j}",
-            (sx, sy, sz),
-            (x, y, sz / 2),
-            yaw,
+            (sx, sy, sz), (x, y, sz / 2), yaw,
             collection="COURTYARD_WALLS",
-            mat=mat,
-            bevel=0.05,
+            mat=clay if j % 3 else accent,
+            bevel=random.uniform(0.06, 0.13),
         )
         STATS["compound_parts"] += 1
 
-    # Basalt foundation cue only at the street-facing bar.
-    fx, fy = local_to_world(cx, cy, yaw, 0, -d / 2 + 0.24)
+    # Broken basalt footing, not a continuous decorative stripe.
+    fx, fy = local_to_world(cx, cy, yaw, -w * 0.08, -d / 2 + 0.20)
     add_box(
         f"compound_{index:03d}_foundation",
-        (w * random.uniform(0.55, 0.78), 0.42, 0.22),
-        (fx, fy, 0.11),
-        yaw,
-        collection="BUILDINGS",
-        mat=basalt,
+        (w * random.uniform(0.35, 0.66), 0.38, random.uniform(0.18, 0.30)),
+        (fx, fy, 0.10), yaw, collection="BUILDINGS", mat=basalt, bevel=0.03,
     )
 
-    # Roof coverage varies and remains partial so courtyards read from above.
-    if index % 3 == 0:
-        rx, ry = local_to_world(cx, cy, yaw, 0, -d / 2 + wall * 0.62)
-        add_box(
-            f"compound_{index:03d}_roof",
-            (w * random.uniform(0.62, 0.84), wall * random.uniform(0.78, 1.05), 0.18),
-            (rx, ry, h + 0.10),
-            yaw,
-            collection="ROOFS",
-            mat=roof,
-        )
+    # Dark timber door slightly proud of the wall, enough to read at medium zoom.
+    door_w = random.uniform(0.75, 1.10)
+    door_h = random.uniform(1.65, 2.05)
+    door_lx = random.uniform(-w * 0.24, w * 0.24)
+    dx, dy = local_to_world(cx, cy, yaw, door_lx, -d / 2 - 0.04)
+    add_box(
+        f"compound_{index:03d}_door",
+        (door_w, 0.12, door_h),
+        (dx, dy, door_h / 2), yaw, collection="DETAILS", mat=door_mat, bevel=0.025,
+    )
+    STATS["doors"] += 1
 
+    add_roof_beams(index, cx, cy, yaw, w, d, h, timber, roof)
     STATS["compounds"] += 1
 
 
-def build_neighborhoods(clay, deep_clay, basalt, roof):
-    """Build irregular neighborhood masses instead of concentric rings.
-
-    District anchors overlap so the engine-sector concept never becomes a visible
-    radial diagram. Curved path corridors cut through the masses as narrow voids.
-    """
+def build_neighborhoods(clay_mats, basalt, timber, roof, door_mat):
+    """Dense overlapping fabric, narrow organic voids, no radial diagram."""
     districts = [
-        {"name": "inner_west", "center": (-58, 4), "radius": (78, 64), "count": 52, "density": 0.90},
-        {"name": "inner_east", "center": (62, -8), "radius": (82, 66), "count": 56, "density": 0.94},
-        {"name": "north_cluster", "center": (-8, 92), "radius": (96, 70), "count": 62, "density": 0.88},
-        {"name": "south_cluster", "center": (18, -102), "radius": (104, 74), "count": 66, "density": 0.86},
-        {"name": "northwest_edge", "center": (-120, 86), "radius": (76, 58), "count": 34, "density": 0.72},
-        {"name": "east_edge", "center": (132, 54), "radius": (72, 64), "count": 38, "density": 0.70},
-        {"name": "southwest_edge", "center": (-118, -92), "radius": (78, 62), "count": 34, "density": 0.68},
+        {"name": "inner_west", "center": (-48, 8), "radius": (72, 58), "count": 86, "gap": (3.2, 4.2)},
+        {"name": "inner_east", "center": (54, -4), "radius": (76, 60), "count": 92, "gap": (3.1, 4.1)},
+        {"name": "north_cluster", "center": (-6, 78), "radius": (88, 62), "count": 84, "gap": (3.4, 4.4)},
+        {"name": "south_cluster", "center": (12, -86), "radius": (94, 66), "count": 92, "gap": (3.4, 4.5)},
+        {"name": "northwest", "center": (-112, 82), "radius": (72, 54), "count": 56, "gap": (3.8, 5.0)},
+        {"name": "east_edge", "center": (122, 48), "radius": (72, 58), "count": 58, "gap": (3.8, 5.1)},
+        {"name": "southwest", "center": (-110, -88), "radius": (72, 58), "count": 54, "gap": (3.9, 5.2)},
+        {"name": "south_east", "center": (108, -96), "radius": (66, 52), "count": 48, "gap": (4.0, 5.3)},
     ]
 
     paths = [
-        [(-205, 18), (-132, 8), (-72, 21), (-24, 14), (26, 8), (84, -5), (196, -16)],
-        [(-92, 194), (-74, 132), (-48, 82), (-22, 38), (-8, 5), (4, -42), (18, -112), (38, -200)],
-        [(-186, -118), (-126, -82), (-82, -44), (-42, -18), (2, -2), (52, 28), (118, 72), (192, 104)],
-        [(102, 190), (86, 132), (72, 96), (54, 62), (28, 38), (4, 22)],
+        [(-205, 12), (-144, 6), (-96, 15), (-52, 23), (-18, 13), (28, 7), (82, -6), (198, -18)],
+        [(-88, 198), (-74, 148), (-56, 102), (-34, 61), (-18, 28), (-5, 2), (4, -42), (16, -104), (34, -198)],
+        [(-190, -122), (-140, -94), (-98, -62), (-58, -35), (-26, -16), (4, -3), (42, 20), (88, 48), (144, 78), (194, 104)],
+        [(116, 190), (98, 145), (86, 108), (68, 76), (45, 51), (20, 31), (4, 22)],
+        [(-188, 112), (-150, 96), (-112, 78), (-82, 59), (-55, 48)],
     ]
 
     placed = []
@@ -247,46 +289,45 @@ def build_neighborhoods(clay, deep_clay, basalt, roof):
     for district in districts:
         cx0, cy0 = district["center"]
         rx, ry = district["radius"]
-        attempts = 0
         target = district["count"]
         created = 0
+        attempts = 0
 
-        while created < target and attempts < target * 18:
+        while created < target and attempts < target * 32:
             attempts += 1
             angle = random.uniform(0, math.tau)
             rr = math.sqrt(random.random())
             cx = cx0 + math.cos(angle) * rx * rr
             cy = cy0 + math.sin(angle) * ry * rr
 
-            # Preserve landmark breathing room without making a giant plaza.
-            if math.hypot(cx, cy) < random.uniform(28, 35):
+            # Keep a modest landmark forecourt, not a giant empty plaza.
+            if math.hypot(cx, cy) < random.uniform(22.0, 27.0):
                 continue
 
-            # Narrow, curved alley/path corridors.
             corridor_distance = min(distance_to_polyline(cx, cy, p) for p in paths)
-            if corridor_distance < random.uniform(2.3, 4.2):
+            if corridor_distance < random.uniform(1.7, 2.7):
                 continue
 
-            # Loose collision rule. Allows tight packing but blocks exact overlaps.
-            min_gap = random.uniform(5.0, 7.2) * district["density"]
-            if any(math.hypot(cx - px, cy - py) < min_gap for px, py in placed[-150:]):
+            min_gap = random.uniform(*district["gap"])
+            if any(math.hypot(cx - px, cy - py) < min_gap for px, py in placed[-260:]):
                 continue
 
-            # Buildings tend to align locally but never form a grid.
             nearest_path = min(paths, key=lambda p: distance_to_polyline(cx, cy, p))
-            a, b = nearest_path[0], nearest_path[-1]
-            path_yaw = math.atan2(b[1] - a[1], b[0] - a[0])
-            yaw = path_yaw + random.uniform(-0.55, 0.55)
+            yaw = nearest_segment_yaw(cx, cy, nearest_path) + random.uniform(-0.38, 0.38)
 
-            w = random.uniform(7.0, 14.5)
-            d = random.uniform(6.0, 13.0)
-            h = random.uniform(2.45, 4.15)
-            if math.hypot(cx, cy) > 145:
-                h *= random.uniform(0.82, 0.95)
+            radial = math.hypot(cx, cy)
+            w = random.uniform(6.8, 13.0)
+            d = random.uniform(6.2, 11.8)
+            h = random.uniform(2.7, 4.25)
+            if radial < 95:
+                h *= random.uniform(1.02, 1.12)
+            elif radial > 155:
+                h *= random.uniform(0.80, 0.94)
+                w *= random.uniform(0.88, 0.98)
 
             add_compound(
                 index, cx, cy, yaw, w, d, h, random.randrange(6),
-                clay, deep_clay, basalt, roof,
+                clay_mats, basalt, timber, roof, door_mat,
             )
             placed.append((cx, cy))
             index += 1
@@ -297,66 +338,85 @@ def build_neighborhoods(clay, deep_clay, basalt, roof):
 
 
 def add_route_guides(paths, route_mat):
-    # Guides are hidden-ish editing cues. Final street form should emerge from voids.
     for i, points in enumerate(paths):
         for j in range(len(points) - 1):
             ax, ay = points[j]
             bx, by = points[j + 1]
             length = math.hypot(bx - ax, by - ay)
             yaw = math.atan2(by - ay, bx - ax)
-            width = 1.4 if i < 3 else 1.1
+            width = random.uniform(0.75, 1.25)
             add_box(
                 f"route_guide_{i}_{j}",
-                (length, width, 0.035),
-                ((ax + bx) / 2, (ay + by) / 2, 0.018),
-                yaw,
-                collection="ROUTES",
-                mat=route_mat,
+                (length, width, 0.025),
+                ((ax + bx) / 2, (ay + by) / 2, 0.012),
+                yaw, collection="ROUTES", mat=route_mat,
             )
             STATS["route_guides"] += 1
 
 
-def add_edge_agriculture(soil, palm_trunk, palm_crown):
-    # Agriculture wraps around parts of the urban edge, not as a neat outer ring.
+def add_palm(name, px, py, height, trunk_mat, crown_mat):
+    add_cylinder(name + "_trunk", 0.20, height, (px, py, height / 2), "PALMS", trunk_mat, vertices=8)
+    # Radial fronds read far better than the previous disk-shaped crown.
+    for i in range(8):
+        yaw = i * math.tau / 8 + random.uniform(-0.12, 0.12)
+        length = random.uniform(2.5, 4.0)
+        fx = px + math.cos(yaw) * length * 0.43
+        fy = py + math.sin(yaw) * length * 0.43
+        add_box(
+            f"{name}_frond_{i}",
+            (length, random.uniform(0.16, 0.24), 0.07),
+            (fx, fy, height + random.uniform(-0.05, 0.22)),
+            yaw, collection="PALMS", mat=crown_mat, bevel=0.03,
+        )
+    STATS["palms"] += 1
+
+
+def add_edge_agriculture(soil_mats, palm_trunk, palm_crown):
     zones = [
-        (-176, 112, 58, 34, -0.18),
-        (156, 126, 62, 38, 0.22),
-        (174, -94, 68, 34, -0.08),
-        (-154, -142, 62, 42, 0.16),
+        (-176, 116, 68, 42, -0.18),
+        (158, 128, 72, 44, 0.22),
+        (176, -92, 76, 42, -0.08),
+        (-158, -144, 70, 46, 0.16),
+        (18, 178, 76, 36, 0.05),
     ]
 
     for zi, (cx, cy, w, d, yaw) in enumerate(zones):
-        patch_count = 4
-        for p in range(patch_count):
-            pw = w * random.uniform(0.34, 0.52)
-            pd = d * random.uniform(0.35, 0.52)
-            ox = random.uniform(-w * 0.25, w * 0.25)
-            oy = random.uniform(-d * 0.25, d * 0.25)
+        for p in range(5):
+            pw = w * random.uniform(0.30, 0.48)
+            pd = d * random.uniform(0.30, 0.48)
+            ox = random.uniform(-w * 0.28, w * 0.28)
+            oy = random.uniform(-d * 0.28, d * 0.28)
             x, y = local_to_world(cx, cy, yaw, ox, oy)
             add_box(
                 f"field_{zi}_{p}",
-                (pw, pd, 0.10),
-                (x, y, -0.02),
-                yaw + random.uniform(-0.10, 0.10),
+                (pw, pd, random.uniform(0.06, 0.11)),
+                (x, y, -0.01),
+                yaw + random.uniform(-0.14, 0.14),
                 collection="AGRICULTURE",
-                mat=soil,
+                mat=soil_mats[(zi + p) % len(soil_mats)],
+                bevel=0.05,
             )
             STATS["field_patches"] += 1
 
-        palm_count = random.randint(10, 16)
-        for p in range(palm_count):
-            px = cx + random.uniform(-w * 0.43, w * 0.43)
-            py = cy + random.uniform(-d * 0.43, d * 0.43)
-            height = random.uniform(5.4, 8.6)
-            add_cylinder(
-                f"palm_{zi}_{p}_trunk", 0.24, height, (px, py, height / 2),
-                collection="PALMS", mat=palm_trunk, vertices=7,
-            )
-            add_cylinder(
-                f"palm_{zi}_{p}_crown", random.uniform(1.2, 1.8), 0.22,
-                (px, py, height + 0.10), collection="PALMS", mat=palm_crown, vertices=9,
-            )
-            STATS["palms"] += 1
+        for p in range(random.randint(14, 22)):
+            px = cx + random.uniform(-w * 0.44, w * 0.44)
+            py = cy + random.uniform(-d * 0.44, d * 0.44)
+            add_palm(f"palm_{zi}_{p}", px, py, random.uniform(5.2, 8.5), palm_trunk, palm_crown)
+
+
+def add_terrain_variation(earth_mats):
+    # Broad subtle patches break the flat single-color tabletop effect.
+    patches = [
+        (-120, 132, 110, 54, -0.12),
+        (128, 138, 98, 46, 0.10),
+        (152, -138, 112, 56, -0.08),
+        (-142, -150, 105, 48, 0.14),
+    ]
+    for i, (x, y, w, d, yaw) in enumerate(patches):
+        add_box(
+            f"terrain_patch_{i}", (w, d, 0.035), (x, y, 0.008), yaw,
+            collection="TERRAIN", mat=earth_mats[i % len(earth_mats)], bevel=0.12,
+        )
 
 
 def configure_scene():
@@ -384,9 +444,9 @@ def write_report():
     REPORT.parent.mkdir(parents=True, exist_ok=True)
     report = {
         "seed": SEED,
-        "status": "authored-core-v2-irregular-neighborhood-fabric",
+        "status": "authored-core-v3-dense-earthen-fabric",
         **STATS,
-        "historical_accuracy": "Visual massing prototype only; not exact parcel reconstruction.",
+        "historical_accuracy": "Historically informed visual reconstruction; not exact parcel archaeology.",
         "runtime_procedural_generation": False,
         "source_of_truth": "tools/blender/generated/core-authored.blend",
     }
@@ -399,27 +459,39 @@ def main():
     for name in COLLECTIONS:
         ensure_collection(name)
 
-    clay = material("mud_clay", (0.47, 0.30, 0.19))
-    deep_clay = material("deep_clay", (0.37, 0.23, 0.14))
-    ground = material("compacted_earth", (0.50, 0.39, 0.26), 1.0)
-    basalt = material("basalt", (0.16, 0.155, 0.15), 0.99)
-    roof = material("palm_wood_roof", (0.30, 0.22, 0.15), 0.97)
-    route = material("route_guide", (0.42, 0.34, 0.24), 1.0)
-    field_soil = material("field_soil", (0.31, 0.27, 0.17), 1.0)
-    palm_trunk = material("palm_trunk", (0.27, 0.19, 0.11), 0.96)
-    palm_crown = material("palm_crown", (0.19, 0.29, 0.16), 0.98)
+    clay_mats = [
+        material("mud_clay_warm", (0.50, 0.34, 0.22)),
+        material("mud_clay_light", (0.57, 0.40, 0.27)),
+        material("mud_clay_deep", (0.40, 0.27, 0.18)),
+        material("mud_clay_dusty", (0.53, 0.38, 0.25)),
+    ]
+    ground = material("compacted_earth", (0.50, 0.40, 0.28), 1.0)
+    earth_mats = [
+        material("earth_patch_a", (0.46, 0.36, 0.25), 1.0),
+        material("earth_patch_b", (0.54, 0.43, 0.30), 1.0),
+    ]
+    basalt = material("basalt", (0.13, 0.13, 0.125), 0.99)
+    timber = material("palm_trunk_wood", (0.24, 0.16, 0.09), 0.96)
+    roof = material("palm_mat_roof", (0.34, 0.25, 0.16), 0.98)
+    door_mat = material("dark_timber_doors", (0.16, 0.105, 0.065), 0.93)
+    route = material("compacted_path", (0.58, 0.47, 0.33), 1.0)
+    soil_mats = [
+        material("field_soil_a", (0.31, 0.27, 0.17), 1.0),
+        material("field_soil_b", (0.38, 0.31, 0.18), 1.0),
+    ]
+    palm_crown = material("palm_fronds", (0.16, 0.27, 0.13), 0.98)
 
     add_box("core_ground", (470, 470, 0.5), (0, 0, -0.25), collection="TERRAIN", mat=ground)
-    build_landmark_shell(clay, roof)
-    paths = build_neighborhoods(clay, deep_clay, basalt, roof)
+    add_terrain_variation(earth_mats)
+    build_landmark_shell(clay_mats[1], roof, timber)
+    paths = build_neighborhoods(clay_mats, basalt, timber, roof, door_mat)
     add_route_guides(paths, route)
-    add_edge_agriculture(field_soil, palm_trunk, palm_crown)
+    add_edge_agriculture(soil_mats, timber, palm_crown)
 
     WORKING.parent.mkdir(parents=True, exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=str(WORKING))
     export_glb()
     write_report()
-
     print("Authoring stats:", STATS)
 
 
