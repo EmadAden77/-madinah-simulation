@@ -1,12 +1,14 @@
 {
   "seed": 622,
-  "status": "authored-core-v2-irregular-neighborhood-fabric",
-  "compounds": 342,
-  "compound_parts": 957,
-  "palms": 50,
-  "field_patches": 16,
-  "route_guides": 25,
-  "historical_accuracy": "Visual massing prototype only; not exact parcel reconstruction.",
+  "status": "authored-core-v3-dense-earthen-fabric",
+  "compounds": 570,
+  "compound_parts": 2001,
+  "doors": 570,
+  "roof_elements": 967,
+  "palms": 83,
+  "field_patches": 25,
+  "route_guides": 34,
+  "historical_accuracy": "Historically informed visual reconstruction; not exact parcel archaeology.",
   "runtime_procedural_generation": false,
   "source_of_truth": "tools/blender/generated/core-authored.blend"
 }
