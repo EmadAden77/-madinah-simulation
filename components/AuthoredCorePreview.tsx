@@ -5,6 +5,9 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
+const CORE_ASSET = `${BASE_PATH}/assets/city/core.glb`
+
 export default function AuthoredCorePreview() {
   const hostRef = useRef<HTMLDivElement>(null)
   const [status, setStatus] = useState('جارٍ تحميل قلب المدينة…')
@@ -46,7 +49,7 @@ export default function AuthoredCorePreview() {
     let disposed = false
 
     loader.load(
-      '/assets/city/core.gltf',
+      CORE_ASSET,
       (gltf) => {
         if (disposed) return
         core = gltf.scene
@@ -67,12 +70,12 @@ export default function AuthoredCorePreview() {
         camera.position.set(center.x + span * 0.72, Math.max(190, span * 0.58), center.z + span * 0.82)
         camera.lookAt(center)
         controls.update()
-        setStatus('قلب المدينة المحرر جاهز · اسحب للدوران وقرّب بإصبعين')
+        setStatus('قلب المدينة الحقيقي من Blender جاهز · اسحب للدوران وقرّب بإصبعين')
       },
       undefined,
       (error) => {
         console.error('Failed to load authored core sector', error)
-        if (!disposed) setStatus('تعذر تحميل core.gltf')
+        if (!disposed) setStatus('تعذر تحميل core.glb')
       },
     )
 
