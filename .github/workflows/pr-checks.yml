@@ -39,11 +39,15 @@ jobs:
       - name: Build authored core in Blender
         run: blender --background --python tools/blender/build_core.py
 
+      - name: Apply full realism enhancement pass
+        run: blender --background --python tools/blender/enhance_core.py
+
       - name: Verify Blender outputs
         run: |
           test -f public/assets/city/core.glb
           test -f tools/blender/generated/core-authored.blend
           test -f public/assets/city/core-authoring-report.json
+          grep -q 'authored-core-v4-full-realism-pass' public/assets/city/core-authoring-report.json
           ls -lh public/assets/city/core.glb tools/blender/generated/core-authored.blend public/assets/city/core-authoring-report.json
 
       - name: Upload authored core artifacts
