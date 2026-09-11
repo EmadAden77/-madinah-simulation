@@ -1,0 +1,12 @@
+{
+  "seed": 622,
+  "status": "authored-core-v2-irregular-neighborhood-fabric",
+  "compounds": 342,
+  "compound_parts": 957,
+  "palms": 50,
+  "field_patches": 16,
+  "route_guides": 25,
+  "historical_accuracy": "Visual massing prototype only; not exact parcel reconstruction.",
+  "runtime_procedural_generation": false,
+  "source_of_truth": "tools/blender/generated/core-authored.blend"
+}
