@@ -1,0 +1,35 @@
+{
+  "seed": 622,
+  "status": "authored-core-v4-full-realism-pass",
+  "compounds": 570,
+  "compound_parts": 2001,
+  "doors": 570,
+  "roof_elements": 967,
+  "palms": 83,
+  "field_patches": 25,
+  "route_guides": 34,
+  "historical_accuracy": "Historically informed visual reconstruction; not exact parcel archaeology.",
+  "runtime_procedural_generation": false,
+  "source_of_truth": "tools/blender/generated/core-authored.blend",
+  "realism_pass_seed": 62231,
+  "realism_features": [
+    "denser irregular fabric from base authoring pass",
+    "irregular mud-wall caps and buttresses",
+    "timber door lintels",
+    "courtyard pottery and shade frames",
+    "street basalt scatter and timber bundles",
+    "outer volcanic-rock texture",
+    "additional palm clusters with radial fronds",
+    "broken agricultural rows and compacted-earth variation"
+  ],
+  "realism_stats": {
+    "wall_caps": 1675,
+    "buttresses": 242,
+    "lintels": 570,
+    "courtyard_props": 346,
+    "street_props": 431,
+    "terrain_rocks": 115,
+    "extra_palms": 66,
+    "field_rows": 24
+  }
+}

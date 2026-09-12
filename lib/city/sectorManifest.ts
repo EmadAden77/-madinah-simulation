@@ -27,7 +27,6 @@ export type CitySectorDefinition = {
  * Asset-driven city contract.
  *
  * Bounds are local simulation coordinates [minX, minZ, maxX, maxZ].
- * They are deliberately placeholders until authored GLB sectors are available.
  * Historical metadata remains separate from render geometry.
  */
 export const CITY_SECTORS: readonly CitySectorDefinition[] = [
@@ -35,7 +34,7 @@ export const CITY_SECTORS: readonly CitySectorDefinition[] = [
     id: 'core',
     labelAr: 'قلب المدينة',
     labelEn: 'Urban Core',
-    asset: '/assets/city/core.glb',
+    asset: '/assets/city/core.gltf',
     bounds: [-220, -220, 220, 220],
     loadingPriority: 100,
     historicalRegionIds: ['prophets-mosque'],

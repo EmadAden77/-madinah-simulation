@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "prebuild": "node scripts/generateHistoricalTilesV3.mjs && node scripts/generateReconstructionGeometry.mjs && node scripts/enrichReconstructionGeometry.mjs && node scripts/enrichOasisGeometry.mjs && node scripts/enrichLandmarkGeometry.mjs && node scripts/generateTerrainTiles.mjs",
+    "dev": "node tools/buildAuthoredCore.mjs && next dev",
+    "prebuild": "node tools/buildAuthoredCore.mjs && node scripts/generateHistoricalTilesV3.mjs && node scripts/generateReconstructionGeometry.mjs && node scripts/enrichReconstructionGeometry.mjs && node scripts/enrichOasisGeometry.mjs && node scripts/enrichLandmarkGeometry.mjs && node scripts/generateTerrainTiles.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

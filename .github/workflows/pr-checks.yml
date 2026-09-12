@@ -1,0 +1,80 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Blender and exporter dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender python3-numpy
+          blender --version
+          blender --background --python-expr "import numpy as np; print('Blender numpy', np.__version__)"
+
+      - name: Make Blender script compatible with runner version
+        run: sed -i 's/BLENDER_EEVEE_NEXT/BLENDER_EEVEE/g' tools/blender/build_core.py
+
+      - name: Build authored core in Blender
+        run: blender --background --python tools/blender/build_core.py
+
+      - name: Apply full realism enhancement pass
+        run: blender --background --python tools/blender/enhance_core.py
+
+      - name: Verify Blender outputs
+        run: |
+          test -f public/assets/city/core.glb
+          test -f tools/blender/generated/core-authored.blend
+          test -f public/assets/city/core-authoring-report.json
+          grep -q 'authored-core-v4-full-realism-pass' public/assets/city/core-authoring-report.json
+          ls -lh public/assets/city/core.glb tools/blender/generated/core-authored.blend public/assets/city/core-authoring-report.json
+
+      - name: Upload authored core artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: authored-core-blender
+          path: |
+            public/assets/city/core.glb
+            tools/blender/generated/core-authored.blend
+            public/assets/city/core-authoring-report.json
+          if-no-files-found: error
+
+      - name: TypeScript
+        run: npx tsc --noEmit
+
+      - name: Production build
+        run: npm run build
+
+      - name: Publish generated core asset to preview branch
+        run: |
+          git checkout -- tools/blender/build_core.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/assets/city/core.glb public/assets/city/core-authoring-report.json
+          if git diff --cached --quiet; then
+            echo "Generated core asset is already current."
+          else
+            git commit -m "chore: publish Blender core asset [skip ci]"
+            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          fi
